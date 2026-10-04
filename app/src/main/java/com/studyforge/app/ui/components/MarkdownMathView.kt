@@ -413,6 +413,17 @@ fun MarkdownTableCard(tableLines: List<String>) {
         }
     }
 
+    val numCols = headers.size
+    val isAutoFit = numCols in 1..3
+
+    // Proportional column weights for responsive screen autofit
+    fun getColWeight(cIdx: Int): Float = when (numCols) {
+        1 -> 1.0f
+        2 -> if (cIdx == 0) 0.38f else 0.62f
+        3 -> if (cIdx == 0) 0.28f else 0.36f
+        else -> 1.0f / numCols
+    }
+
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -420,30 +431,44 @@ fun MarkdownTableCard(tableLines: List<String>) {
             .fillMaxWidth()
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
     ) {
-        Box(
-            modifier = Modifier
+        val tableModifier = if (isAutoFit) {
+            Modifier.fillMaxWidth()
+        } else {
+            Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
+        }
+
+        Box(modifier = tableModifier) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
                 // Header Row
                 Row(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
-                        .padding(vertical = 10.dp, horizontal = 8.dp),
+                        .padding(vertical = 8.dp, horizontal = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     headers.forEachIndexed { idx, header ->
                         val align = alignments.getOrElse(idx) { TextAlign.Start }
-                        Box(
-                            modifier = Modifier
-                                .widthIn(min = 120.dp, max = 260.dp)
-                                .padding(horizontal = 8.dp)
-                        ) {
+                        val cellModifier = if (isAutoFit) {
+                            Modifier
+                                .weight(getColWeight(idx))
+                                .padding(horizontal = 6.dp)
+                        } else {
+                            Modifier
+                                .widthIn(min = 90.dp, max = 200.dp)
+                                .padding(horizontal = 6.dp)
+                        }
+                        Box(modifier = cellModifier) {
                             Text(
                                 text = parseInlineMarkdownAndLatex(header),
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 13.5.sp),
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 textAlign = align,
                                 modifier = Modifier.fillMaxWidth()
@@ -452,29 +477,35 @@ fun MarkdownTableCard(tableLines: List<String>) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Data Rows
                 rows.forEachIndexed { rIdx, rowCells ->
                     val rowBg = if (rIdx % 2 == 0) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
                     Row(
                         modifier = Modifier
+                            .fillMaxWidth()
                             .clip(RoundedCornerShape(6.dp))
                             .background(rowBg)
-                            .padding(vertical = 8.dp, horizontal = 8.dp),
+                            .padding(vertical = 7.dp, horizontal = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         headers.indices.forEach { cIdx ->
                             val cellText = rowCells.getOrElse(cIdx) { "" }
                             val align = alignments.getOrElse(cIdx) { TextAlign.Start }
-                            Box(
-                                modifier = Modifier
-                                    .widthIn(min = 120.dp, max = 260.dp)
-                                    .padding(horizontal = 8.dp)
-                            ) {
+                            val cellModifier = if (isAutoFit) {
+                                Modifier
+                                    .weight(getColWeight(cIdx))
+                                    .padding(horizontal = 6.dp)
+                            } else {
+                                Modifier
+                                    .widthIn(min = 90.dp, max = 200.dp)
+                                    .padding(horizontal = 6.dp)
+                            }
+                            Box(modifier = cellModifier) {
                                 Text(
                                     text = parseInlineMarkdownAndLatex(cellText),
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = align,
                                     modifier = Modifier.fillMaxWidth()
@@ -796,7 +827,11 @@ fun HeadingText(text: String, level: Int) {
 
 @Composable
 fun BulletListItem(text: String) {
-    Row(modifier = Modifier.padding(start = 6.dp, top = 2.dp, bottom = 2.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
+    ) {
         Text(
             text = "•",
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
@@ -806,14 +841,19 @@ fun BulletListItem(text: String) {
         Text(
             text = parseInlineMarkdownAndLatex(text),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f, fill = false)
         )
     }
 }
 
 @Composable
 fun NumberedListItem(number: String, text: String) {
-    Row(modifier = Modifier.padding(start = 6.dp, top = 2.dp, bottom = 2.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
+    ) {
         Text(
             text = "$number.",
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
@@ -823,7 +863,8 @@ fun NumberedListItem(number: String, text: String) {
         Text(
             text = parseInlineMarkdownAndLatex(text),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f, fill = false)
         )
     }
 }

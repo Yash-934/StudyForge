@@ -3,8 +3,10 @@ package com.studyforge.app.ui.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Folder
@@ -92,7 +94,12 @@ fun AppNavigation(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (shouldShowBottomBar) {
-                NavigationBar {
+                NavigationBar(
+                    tonalElevation = 3.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
+
                     NavigationBarItem(
                         selected = currentRoute == Screen.Home.route,
                         onClick = {
@@ -103,7 +110,7 @@ fun AppNavigation(
                             }
                         },
                         icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home") }
+                        label = { Text("Home", maxLines = 1, softWrap = false, style = labelStyle) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Practice.route,
@@ -115,7 +122,7 @@ fun AppNavigation(
                             }
                         },
                         icon = { Icon(Icons.Default.PlayCircle, contentDescription = "Practice") },
-                        label = { Text("Practice") }
+                        label = { Text("Practice", maxLines = 1, softWrap = false, style = labelStyle) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Library.route,
@@ -127,7 +134,7 @@ fun AppNavigation(
                             }
                         },
                         icon = { Icon(Icons.Default.Folder, contentDescription = "Library") },
-                        label = { Text("Library") }
+                        label = { Text("Library", maxLines = 1, softWrap = false, style = labelStyle) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Analytics.route,
@@ -138,8 +145,8 @@ fun AppNavigation(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(Icons.Default.QueryStats, contentDescription = "Analytics") },
-                        label = { Text("Analytics") }
+                        icon = { Icon(Icons.Default.QueryStats, contentDescription = "Stats") },
+                        label = { Text("Stats", maxLines = 1, softWrap = false, style = labelStyle) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Planner.route,
@@ -151,7 +158,7 @@ fun AppNavigation(
                             }
                         },
                         icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Planner") },
-                        label = { Text("Planner") }
+                        label = { Text("Planner", maxLines = 1, softWrap = false, style = labelStyle) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Settings.route,
@@ -163,7 +170,7 @@ fun AppNavigation(
                             }
                         },
                         icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings") }
+                        label = { Text("Settings", maxLines = 1, softWrap = false, style = labelStyle) }
                     )
                 }
             }

@@ -64,7 +64,7 @@ fun MathFormulaView(
         )
     }
 
-    // Give ample vertical clearance so tall fractions, integrals with limits, and powers are NEVER cut off
+    // Give ample vertical clearance so tall fractions, integrals with limits, cases, and powers are NEVER cut off
     val calculatedHeightDp = remember(webViewHeightDp, minHeight) {
         if (webViewHeightDp > 0) {
             maxOf(webViewHeightDp.dp + 16.dp, minHeight)
@@ -89,8 +89,8 @@ fun MathFormulaView(
                     setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
                     setBackgroundColor(AndroidColor.TRANSPARENT)
                     isVerticalScrollBarEnabled = false
-                    isHorizontalScrollBarEnabled = false
-                    overScrollMode = WebView.OVER_SCROLL_NEVER
+                    isHorizontalScrollBarEnabled = true
+                    overScrollMode = WebView.OVER_SCROLL_IF_CONTENT_SCROLLS
 
                     settings.apply {
                         javaScriptEnabled = true
@@ -369,7 +369,7 @@ private fun buildKaTeXBlockHtml(
         <!DOCTYPE html>
         <html>
         <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
             <link rel="stylesheet" href="katex.min.css">
             <style>
                 * {
@@ -380,32 +380,46 @@ private fun buildKaTeXBlockHtml(
                     -webkit-user-select: none;
                     user-select: none;
                 }
-                body {
+                html, body {
                     background-color: transparent;
                     color: $colorHex;
                     font-size: ${fontSizeSp}px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: ${if (displayMode) "center" else "flex-start"};
+                    width: 100%;
                     min-height: 100%;
                     overflow-x: auto;
                     overflow-y: hidden;
-                    padding: 8px 12px;
+                    -webkit-overflow-scrolling: touch;
+                }
+                body {
+                    padding: 6px 8px;
+                    display: block;
+                    text-align: left;
+                }
+                .math-wrapper {
+                    display: inline-block;
+                    min-width: 100%;
+                    text-align: left;
+                    padding-left: 2px;
+                    padding-right: 20px;
+                    white-space: nowrap;
                 }
                 #math-container {
                     display: inline-block;
                     color: $colorHex;
                     font-size: ${fontSizeSp}px;
+                    text-align: left;
                     padding: 4px 0;
                 }
                 .katex-display {
                     margin: 0 !important;
                     padding: 4px 0 !important;
+                    text-align: left !important;
                 }
                 .katex {
                     color: $colorHex !important;
-                    font-size: 1.18em !important;
+                    font-size: 1.15em !important;
                     line-height: 1.5 !important;
+                    text-align: left !important;
                 }
                 .katex .mfrac .vlist-t {
                     vertical-align: middle !important;
@@ -414,7 +428,9 @@ private fun buildKaTeXBlockHtml(
             <script src="katex.min.js"></script>
         </head>
         <body>
-            <div id="math-container"></div>
+            <div class="math-wrapper">
+                <div id="math-container"></div>
+            </div>
             <script>
                 try {
                     const formula = "$escapedLatex";
