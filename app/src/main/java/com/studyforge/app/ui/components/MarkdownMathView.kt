@@ -416,7 +416,7 @@ fun MarkdownMathView(
 }
 
 /**
- * High-Performance native mathematical card with zero WebViews.
+ * High-Performance native mathematical card with authentic KaTeX textbook styling.
  */
 @Composable
 fun BlockMathCard(
@@ -426,22 +426,19 @@ fun BlockMathCard(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
-    val formattedMath = remember(rawLatex, preformatted) {
-        preformatted ?: formatLatexToReadableMath(rawLatex)
-    }
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        color = MaterialTheme.colorScheme.surface,
         modifier = modifier
             .fillMaxWidth()
             .border(
                 1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
                 RoundedCornerShape(16.dp)
             )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -480,24 +477,14 @@ fun BlockMathCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Zero-latency, 120 FPS native mathematical layout with horizontal scroll support
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(vertical = 4.dp, horizontal = 4.dp)
-            ) {
-                Text(
-                    text = formattedMath,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 17.sp,
-                        lineHeight = 25.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            // Authentic KaTeX Textbook Mathematical Typesetting (matching reference image)
+            MathFormulaView(
+                latex = rawLatex,
+                displayMode = true,
+                fontSizeSp = 21,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
