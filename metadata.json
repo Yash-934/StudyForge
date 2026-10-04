@@ -1,0 +1,6 @@
+{
+  "name": "StudyForge",
+  "description": "A comprehensive personal learning and study operating system featuring hierarchical batch/subject/chapter organization, Markdown & LaTeX notes, formula vault, question bank, smart test generation, mistake book, spaced repetition, analytics, and offline-first storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

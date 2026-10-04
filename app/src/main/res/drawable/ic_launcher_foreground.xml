@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Subtle drop shadow on icon -->
+    <path
+        android:pathData="M30,44 C30,40.5 33.5,39 37,39 L51,43.5 L51,75.5 L37,71 C33.5,70 30,71.5 30,75 Z"
+        android:fillColor="#33000000" />
+    <path
+        android:pathData="M78,44 C78,40.5 74.5,39 71,39 L57,43.5 L57,75.5 L71,71 C74.5,70 78,71.5 78,75 Z"
+        android:fillColor="#33000000" />
+
+    <!-- Open Book Left Page -->
+    <path
+        android:pathData="M29,42 C29,39 32.5,37.5 36,37.5 L51,42 L51,73 L36,68.5 C32.5,67.5 29,69 29,72 Z"
+        android:fillColor="#F1F5F9" />
+
+    <!-- Open Book Right Page -->
+    <path
+        android:pathData="M79,42 C79,39 75.5,37.5 72,37.5 L57,42 L57,73 L72,68.5 C75.5,67.5 79,69 79,72 Z"
+        android:fillColor="#E2E8F0" />
+
+    <!-- Book Spine / Center Divider -->
+    <path
+        android:pathData="M51,42 L57,42 L57,74 L51,74 Z"
+        android:fillColor="#818CF8" />
+
+    <!-- Page Lines Left -->
+    <path
+        android:pathData="M34,46 L47,49.5"
+        android:strokeWidth="1.8"
+        android:strokeColor="#94A3B8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M34,53 L47,56.5"
+        android:strokeWidth="1.8"
+        android:strokeColor="#94A3B8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M34,60 L44,63"
+        android:strokeWidth="1.8"
+        android:strokeColor="#94A3B8"
+        android:strokeLineCap="round" />
+
+    <!-- Page Lines Right -->
+    <path
+        android:pathData="M61,49.5 L74,46"
+        android:strokeWidth="1.8"
+        android:strokeColor="#94A3B8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M61,56.5 L74,53"
+        android:strokeWidth="1.8"
+        android:strokeColor="#94A3B8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M64,63 L74,60"
+        android:strokeWidth="1.8"
+        android:strokeColor="#94A3B8"
+        android:strokeLineCap="round" />
+
+    <!-- Glowing Forge Spark / Knowledge Star above the book -->
+    <path
+        android:pathData="M54,23 L56.2,30.5 L63.5,32.7 L56.2,35 L54,42.5 L51.8,35 L44.5,32.7 L51.8,30.5 Z"
+        android:fillColor="#FBBF24" />
+
+    <!-- Center core jewel -->
+    <path
+        android:pathData="M54,30.5 A2.2,2.2 0 1 0 54,34.9 A2.2,2.2 0 1 0 54,30.5 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Anvil / Foundation Base beneath the book -->
+    <path
+        android:pathData="M43,76 L65,76 L61,81 L47,81 Z"
+        android:fillColor="#6366F1" />
+</vector>
