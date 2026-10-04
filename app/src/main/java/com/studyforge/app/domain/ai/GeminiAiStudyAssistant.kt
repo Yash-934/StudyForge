@@ -43,55 +43,64 @@ class GeminiAiStudyAssistant(
             )
         }
 
-        try {
-            val root = JSONObject()
+        val modelsToTry = listOf("gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest")
+        var lastException: Exception? = null
 
-            if (systemInstruction.isNotBlank()) {
-                root.put("systemInstruction", JSONObject().apply {
-                    put("parts", JSONArray().put(JSONObject().put("text", systemInstruction)))
-                })
-            }
+        for (model in modelsToTry) {
+            try {
+                val root = JSONObject()
 
-            val contents = JSONArray().apply {
-                put(JSONObject().apply {
-                    put("parts", JSONArray().put(JSONObject().put("text", prompt)))
-                })
-            }
-            root.put("contents", contents)
-
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey"
-            val body = root.toString().toRequestBody(jsonMediaType)
-            val request = Request.Builder()
-                .url(url)
-                .post(body)
-                .build()
-
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string() ?: ""
-
-            if (!response.isSuccessful) {
-                val errorMsg = try {
-                    JSONObject(responseBody).optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}"
-                } catch (e: Exception) {
-                    "HTTP ${response.code}"
+                if (systemInstruction.isNotBlank()) {
+                    root.put("systemInstruction", JSONObject().apply {
+                        put("parts", JSONArray().put(JSONObject().put("text", systemInstruction)))
+                    })
                 }
-                return@withContext Result.failure(Exception(errorMsg))
-            }
 
-            val respJson = JSONObject(responseBody)
-            val candidates = respJson.optJSONArray("candidates")
-            val firstCandidate = candidates?.optJSONObject(0)
-            val parts = firstCandidate?.optJSONObject("content")?.optJSONArray("parts")
-            val text = parts?.optJSONObject(0)?.optString("text", "") ?: ""
+                val contents = JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("parts", JSONArray().put(JSONObject().put("text", prompt)))
+                    })
+                }
+                root.put("contents", contents)
 
-            if (text.isBlank()) {
-                Result.failure(Exception("Empty response from AI assistant"))
-            } else {
-                Result.success(text)
+                val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
+                val body = root.toString().toRequestBody(jsonMediaType)
+                val request = Request.Builder()
+                    .url(url)
+                    .post(body)
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val responseBody = response.body?.string() ?: ""
+
+                if (!response.isSuccessful) {
+                    val errorMsg = try {
+                        JSONObject(responseBody).optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}"
+                    } catch (e: Exception) {
+                        "HTTP ${response.code}"
+                    }
+                    lastException = Exception(errorMsg)
+                    // If denied access or not found on this model, try next fallback model
+                    continue
+                }
+
+                val respJson = JSONObject(responseBody)
+                val candidates = respJson.optJSONArray("candidates")
+                val firstCandidate = candidates?.optJSONObject(0)
+                val parts = firstCandidate?.optJSONObject("content")?.optJSONArray("parts")
+                val text = parts?.optJSONObject(0)?.optString("text", "") ?: ""
+
+                if (text.isNotBlank()) {
+                    return@withContext Result.success(text)
+                } else {
+                    lastException = Exception("Empty response from AI assistant")
+                }
+            } catch (e: Exception) {
+                lastException = e
             }
-        } catch (e: Exception) {
-            Result.failure(e)
         }
+
+        Result.failure(lastException ?: Exception("Failed to contact Gemini AI assistant"))
     }
 
     override suspend fun explainConcept(concept: String, contextText: String): Result<String> {

@@ -56,6 +56,15 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import com.studyforge.app.ui.components.SectionHeader
 import com.studyforge.app.ui.components.SquircleIconBadge
 import com.studyforge.app.ui.components.StudyCard
@@ -75,6 +84,11 @@ fun SettingsScreen(
     val apiKeyOverride by viewModel.geminiApiKeyOverride.collectAsState()
 
     var customApiKey by remember(apiKeyOverride) { mutableStateOf(apiKeyOverride) }
+    var isKeyVisible by remember { mutableStateOf(false) }
+    var isTestingKey by remember { mutableStateOf(false) }
+    var testStatusMessage by remember { mutableStateOf<String?>(null) }
+    var isTestSuccess by remember { mutableStateOf(false) }
+
     var showBackupExportDialog by remember { mutableStateOf(false) }
     var exportedJson by remember { mutableStateOf("") }
     var showRestoreDialog by remember { mutableStateOf(false) }
@@ -82,6 +96,7 @@ fun SettingsScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -207,22 +222,108 @@ fun SettingsScreen(
 
                     OutlinedTextField(
                         value = customApiKey,
-                        onValueChange = { customApiKey = it },
+                        onValueChange = {
+                            customApiKey = it
+                            testStatusMessage = null
+                        },
                         label = { Text("Gemini API Key Override") },
-                        placeholder = { Text("Paste AI Studio Gemini Key...") },
+                        placeholder = { Text("Paste AI Studio Gemini Key (AIzaSy...)") },
                         singleLine = true,
+                        visualTransformation = if (isKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
+                                Icon(
+                                    imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (isKeyVisible) "Hide API Key" else "Show API Key"
+                                )
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    Button(
-                        onClick = { viewModel.setGeminiApiKeyOverride(customApiKey) },
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.setGeminiApiKeyOverride(customApiKey.trim())
+                                isKeyVisible = false
+                                testStatusMessage = null
+                                Toast.makeText(context, "Gemini API key saved & secured (hidden)!", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Save Key")
+                        }
+
+                        if (customApiKey.isNotBlank()) {
+                            OutlinedButton(
+                                onClick = {
+                                    customApiKey = ""
+                                    viewModel.setGeminiApiKeyOverride("")
+                                    testStatusMessage = null
+                                    Toast.makeText(context, "API Key cleared", Toast.LENGTH_SHORT).show()
+                                },
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Clear")
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Test Key Connection Button
+                    OutlinedButton(
+                        onClick = {
+                            if (customApiKey.isBlank() && apiKeyOverride.isBlank()) {
+                                testStatusMessage = "Please enter and save an API key first."
+                                isTestSuccess = false
+                                return@OutlinedButton
+                            }
+                            isTestingKey = true
+                            testStatusMessage = null
+                            coroutineScope.launch {
+                                val result = viewModel.aiAssistant.explainConcept("Calculus", "Mathematics")
+                                isTestingKey = false
+                                result.onSuccess {
+                                    testStatusMessage = "✓ Verified successfully! Connected to Gemini AI (gemini-3.8-flash)."
+                                    isTestSuccess = true
+                                }.onFailure { err ->
+                                    testStatusMessage = "Error: ${err.message ?: "Failed to connect"}"
+                                    isTestSuccess = false
+                                }
+                            }
+                        },
+                        enabled = !isTestingKey,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Save API Key")
+                        if (isTestingKey) {
+                            Text("Testing Connection...")
+                        } else {
+                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Test Gemini API Connection")
+                        }
+                    }
+
+                    if (testStatusMessage != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = testStatusMessage!!,
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (isTestSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }
