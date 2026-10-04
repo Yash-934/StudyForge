@@ -255,96 +255,113 @@ fun PlannerScreen(
                 }
             } else {
                 // JOURNAL TAB
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    val sdf = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault())
-                    Text(
-                        text = sdf.format(Date(todayMillis)),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val sdf = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault())
+                        Text(
+                            text = sdf.format(Date(todayMillis)),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
 
-                    Text("How was your study energy today?", style = MaterialTheme.typography.labelMedium)
-                    // Horizontally scrollable row prevents vertical text overflow and letter squeezing
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Mood.values().forEach { m ->
-                            FilterChip(
-                                selected = selectedMood == m,
-                                onClick = { selectedMood = m },
-                                label = { Text("${m.emoji} ${m.label}", maxLines = 1) }
-                            )
+                    item {
+                        Text("How was your study energy today?", style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        // Horizontally scrollable row prevents vertical text overflow and letter squeezing
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Mood.values().forEach { m ->
+                                FilterChip(
+                                    selected = selectedMood == m,
+                                    onClick = { selectedMood = m },
+                                    label = { Text("${m.emoji} ${m.label}", maxLines = 1) }
+                                )
+                            }
                         }
                     }
 
-                    OutlinedTextField(
-                        value = accomplishments,
-                        onValueChange = { accomplishments = it },
-                        label = { Text("What did you accomplish today?") },
-                        placeholder = { Text("e.g. Mastered Integration by Parts, solved 15 calculus problems") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = difficulties,
-                        onValueChange = { difficulties = it },
-                        label = { Text("What challenges or doubts arose?") },
-                        placeholder = { Text("e.g. Struggled with partial fraction decomposition") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = tomorrowPlan,
-                        onValueChange = { tomorrowPlan = it },
-                        label = { Text("Plan for tomorrow:") },
-                        placeholder = { Text("e.g. Definite integrals drill + mistake revision") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = journalText,
-                        onValueChange = { journalText = it },
-                        label = { Text("Freeform Study Thoughts / Notes:") },
-                        placeholder = { Text("Reflections, motivations, ideas...") },
-                        minLines = 3,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Button(
-                        onClick = {
-                            viewModel.saveJournal(
-                                JournalEntity(
-                                    dateMillis = todayMillis,
-                                    freeText = journalText,
-                                    mood = selectedMood,
-                                    accomplishments = accomplishments,
-                                    difficulties = difficulties,
-                                    tomorrowPlan = tomorrowPlan
-                                )
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (todayJournal != null) "Update Today's Journal" else "Save Journal Entry")
+                    item {
+                        OutlinedTextField(
+                            value = accomplishments,
+                            onValueChange = { accomplishments = it },
+                            label = { Text("What did you accomplish today?") },
+                            placeholder = { Text("e.g. Mastered Integration by Parts, solved 15 calculus problems") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    item {
+                        OutlinedTextField(
+                            value = difficulties,
+                            onValueChange = { difficulties = it },
+                            label = { Text("What challenges or doubts arose?") },
+                            placeholder = { Text("e.g. Struggled with partial fraction decomposition") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    item {
+                        OutlinedTextField(
+                            value = tomorrowPlan,
+                            onValueChange = { tomorrowPlan = it },
+                            label = { Text("Plan for tomorrow:") },
+                            placeholder = { Text("e.g. Definite integrals drill + mistake revision") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    item {
+                        OutlinedTextField(
+                            value = journalText,
+                            onValueChange = { journalText = it },
+                            label = { Text("Freeform Study Thoughts / Notes:") },
+                            placeholder = { Text("Reflections, motivations, ideas...") },
+                            minLines = 3,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    item {
+                        Button(
+                            onClick = {
+                                viewModel.saveJournal(
+                                    JournalEntity(
+                                        dateMillis = todayMillis,
+                                        freeText = journalText,
+                                        mood = selectedMood,
+                                        accomplishments = accomplishments,
+                                        difficulties = difficulties,
+                                        tomorrowPlan = tomorrowPlan
+                                    )
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(if (todayJournal != null) "Update Today's Journal" else "Save Journal Entry")
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(72.dp))
+                    }
                 }
             }
         }

@@ -84,7 +84,6 @@ fun AppNavigation(
         Screen.Settings.route
     )
     val shouldShowBottomBar = currentRoute in bottomNavRoutes
-    val canSwipeBack = (currentRoute !in bottomNavRoutes) && (navController.previousBackStackEntry != null)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -171,10 +170,6 @@ fun AppNavigation(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .swipeBackGesture(
-                    enabled = canSwipeBack,
-                    onBack = { navController.popBackStack() }
-                )
         ) {
             NavHost(
                 navController = navController,
