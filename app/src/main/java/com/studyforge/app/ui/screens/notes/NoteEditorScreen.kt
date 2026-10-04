@@ -1,6 +1,11 @@
 package com.studyforge.app.ui.screens.notes
 
+import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -42,9 +48,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +60,11 @@ import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.MathEditorToolbar
 import com.studyforge.app.ui.screens.ai.AiAssistantDialog
 import com.studyforge.app.viewmodel.StudyViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +75,8 @@ fun NoteEditorScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val notes by viewModel.notes.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val chapter = chapters.find { it.id == chapterId }
@@ -77,6 +92,33 @@ fun NoteEditorScreen(
     var isFavorite by remember { mutableStateOf(existingNote?.isFavorite ?: false) }
     var isPinned by remember { mutableStateOf(existingNote?.isPinned ?: false) }
     var showAiDialog by remember { mutableStateOf(false) }
+
+    // Zero-permission Photo Picker for importing images from device gallery
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    val localFile = withContext(Dispatchers.IO) {
+                        val imagesDir = File(context.filesDir, "note_images").apply { mkdirs() }
+                        val destFile = File(imagesDir, "img_${System.currentTimeMillis()}.jpg")
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            FileOutputStream(destFile).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        destFile
+                    }
+                    val imageMarkdownTag = "\n\n![Imported Diagram](file://${localFile.absolutePath})\n\n"
+                    contentMarkdown += imageMarkdownTag
+                    Toast.makeText(context, "Image attached from gallery!", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Failed to import image: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(existingNote) {
         if (existingNote != null) {
@@ -125,6 +167,19 @@ fun NoteEditorScreen(
                 },
                 actions = {
                     if (isEditing) {
+                        IconButton(
+                            onClick = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddPhotoAlternate,
+                                contentDescription = "Import Gallery Image",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         if (noteId > 0L) {
                             IconButton(onClick = { isEditing = false }) {
                                 Icon(
@@ -241,10 +296,15 @@ fun NoteEditorScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                // Math & Formatting quick insertion toolbar
+                // Math & Formatting quick insertion toolbar with Gallery Image Picker
                 MathEditorToolbar(
                     onInsertText = { toInsert ->
                         contentMarkdown += toInsert
+                    },
+                    onPickImage = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
                     }
                 )
 
@@ -269,7 +329,7 @@ fun NoteEditorScreen(
                         value = contentMarkdown,
                         onValueChange = { contentMarkdown = it },
                         placeholder = {
-                            Text("Write notes using Markdown and LaTeX...\n\nExample:\n# Theorem 1\n$$\\int x^2 dx = \\frac{x^3}{3} + C$$\n\n[IMPORTANT]\nRemember integration constant +C.")
+                            Text("Write notes using Markdown, Tables, and LaTeX...\n\nExample:\n# 4.1 Mathematical Formulation\n$$\\Delta W_B = \\int_a^b f(x) dx$$\n\n| Field | Value |\n|---|---|\n| Author | Quant Team |\n\n[IMPORTANT]\nRemember integration constant +C.")
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -281,7 +341,7 @@ fun NoteEditorScreen(
                 }
             }
         } else {
-            // DIRECT FULL SCREEN PREVIEW MODE (Clean reader, menus and tabs hidden)
+            // DIRECT FULL SCREEN PREVIEW MODE (Clean reader)
             Column(
                 modifier = Modifier
                     .fillMaxSize()

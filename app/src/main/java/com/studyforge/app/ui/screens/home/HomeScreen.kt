@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -58,9 +59,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.studyforge.app.data.local.entities.ChapterEntity
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.HeroLearningCard
 import com.studyforge.app.ui.components.MasteryProgressBar
 import com.studyforge.app.ui.components.SectionHeader
+import com.studyforge.app.ui.components.SquircleIconBadge
 import com.studyforge.app.ui.components.StatCard
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.components.StudyHeatmap
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.PurpleAccent
@@ -96,11 +100,12 @@ fun HomeScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             // Top Bar Greeting & Search
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -239,155 +244,45 @@ fun HomeScreen(
         item {
             if (topChapter != null) {
                 val subject = subjects.find { it.id == topChapter.subjectId }
-                ElevatedCard(
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToChapter(topChapter.id) }
-                ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "CONTINUE LEARNING",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = 1.sp
-                                ),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = topChapter.name,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        if (subject != null) {
-                            Text(
-                                text = subject.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        MasteryProgressBar(score = topChapter.masteryScore)
-                    }
-                }
+                HeroLearningCard(
+                    category = "CONTINUE LEARNING",
+                    title = topChapter.name,
+                    subtitle = subject?.name ?: "Mathematics",
+                    masteryScore = topChapter.masteryScore,
+                    watermarkSymbol = "∫dx",
+                    onClick = { onNavigateToChapter(topChapter.id) }
+                )
             } else {
-                ElevatedCard(
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "GET STARTED WITH STUDYFORGE",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = 1.sp
-                                ),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Build Your Knowledge Base",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Create batches in Library, write distraction-free notes with LaTeX math, organize formulas, practice questions with smart tests, and import JSON question banks.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            AssistChip(
-                                onClick = onNavigateToPractice,
-                                label = { Text("Practice Hub") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            )
-                            AssistChip(
-                                onClick = onNavigateToJsonImport,
-                                label = { Text("Import JSON") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.FileUpload,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
+                HeroLearningCard(
+                    category = "GET STARTED WITH STUDYFORGE",
+                    title = "Build Your Knowledge Base",
+                    subtitle = "Create batches in Library, write distraction-free notes with LaTeX math, organize formulas, practice questions with smart tests, and import JSON question banks.",
+                    watermarkIcon = Icons.Default.AutoAwesome,
+                    actionIcon = Icons.Default.PlayArrow,
+                    onClick = onNavigateToPractice
+                )
             }
         }
 
         // Revision Due Alert
         if (revisionDue.isNotEmpty()) {
             item {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = WarningYellow.copy(alpha = 0.12f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToRevision() }
+                StudyCard(
+                    shape = RoundedCornerShape(20.dp),
+                    borderColor = WarningYellow.copy(alpha = 0.35f),
+                    onClick = { onNavigateToRevision() }
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(WarningYellow.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.NotificationsActive,
-                                contentDescription = null,
-                                tint = WarningYellow,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                        SquircleIconBadge(
+                            icon = Icons.Default.NotificationsActive,
+                            accentColor = WarningYellow,
+                            containerColor = WarningYellow.copy(alpha = 0.15f),
+                            size = 42.dp,
+                            iconSize = 22.dp
+                        )
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -401,11 +296,20 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = WarningYellow
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(WarningYellow.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = WarningYellow,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -414,31 +318,22 @@ fun HomeScreen(
         // Unresolved Mistakes Alert
         if (unresolvedMistakes.isNotEmpty()) {
             item {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = ErrorRed.copy(alpha = 0.10f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToMistakes(-1L) }
+                StudyCard(
+                    shape = RoundedCornerShape(20.dp),
+                    borderColor = ErrorRed.copy(alpha = 0.35f),
+                    onClick = { onNavigateToMistakes(-1L) }
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(ErrorRed.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ErrorOutline,
-                                contentDescription = null,
-                                tint = ErrorRed,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                        SquircleIconBadge(
+                            icon = Icons.Default.ErrorOutline,
+                            accentColor = ErrorRed,
+                            containerColor = ErrorRed.copy(alpha = 0.15f),
+                            size = 42.dp,
+                            iconSize = 22.dp
+                        )
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -452,11 +347,20 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = ErrorRed
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(ErrorRed.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = ErrorRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -468,17 +372,12 @@ fun HomeScreen(
                 SectionHeader(title = "Needs Attention")
             }
             items(analytics.weakChapters.take(2)) { weakChap ->
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToChapter(weakChap.chapterId) }
+                StudyCard(
+                    shape = RoundedCornerShape(18.dp),
+                    onClick = { onNavigateToChapter(weakChap.chapterId) }
                 ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -492,7 +391,7 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             MasteryProgressBar(score = weakChap.masteryScore)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -521,48 +420,90 @@ fun HomeScreen(
         // Quick Navigation to Study Pillars
         item {
             SectionHeader(title = "Learning Modules & Tools")
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                    modifier = Modifier.fillMaxWidth().clickable { onNavigateToPractice() }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                StudyCard(
+                    shape = RoundedCornerShape(20.dp),
+                    onClick = { onNavigateToPractice() }
                 ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.Quiz, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            SquircleIconBadge(
+                                icon = Icons.Default.Quiz,
+                                accentColor = MaterialTheme.colorScheme.primary,
+                                size = 42.dp,
+                                iconSize = 22.dp
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
                             Column {
                                 Text("Practice & Mastery Hub", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                                 Text("Smart tests, spaced revision queue, mistake notebook & flashcards", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
 
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                    modifier = Modifier.fillMaxWidth().clickable { onNavigateToJsonImport() }
+                StudyCard(
+                    shape = RoundedCornerShape(20.dp),
+                    onClick = { onNavigateToJsonImport() }
                 ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.FileUpload, contentDescription = null, tint = PurpleAccent)
-                            Spacer(modifier = Modifier.width(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            SquircleIconBadge(
+                                icon = Icons.Default.FileUpload,
+                                accentColor = PurpleAccent,
+                                size = 42.dp,
+                                iconSize = 22.dp
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
                             Column {
                                 Text("JSON Test & Question Importer", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                                 Text("Bulk import MCQs, True/False, and Fill in the Blanks", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = PurpleAccent)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(PurpleAccent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = PurpleAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -570,18 +511,22 @@ fun HomeScreen(
 
         // Daily Study Strategy Tip
         item {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
-                modifier = Modifier.fillMaxWidth()
+            StudyCard(
+                shape = RoundedCornerShape(20.dp),
+                borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                        SquircleIconBadge(
+                            icon = Icons.Default.AutoAwesome,
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            size = 32.dp,
+                            iconSize = 18.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text("Active Recall & Spaced Repetition", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.primary)
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Studying with tests and flashcards builds 50% stronger retention than passive re-reading. Check your Spaced Revision queue daily to retain difficult topics.",
                         style = MaterialTheme.typography.bodySmall,

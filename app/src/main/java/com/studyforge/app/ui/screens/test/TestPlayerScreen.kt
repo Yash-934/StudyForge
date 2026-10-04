@@ -68,6 +68,7 @@ import com.studyforge.app.data.local.entities.QuestionEntity
 import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.ui.components.DifficultyBadge
 import com.studyforge.app.ui.components.MarkdownMathView
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.ui.theme.SuccessGreen
@@ -282,14 +283,10 @@ fun TestPlayerScreen(
             }
 
             // Question Text (Rendered cleanly with math notation!)
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                ),
-                modifier = Modifier.fillMaxWidth()
+            StudyCard(
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Box(modifier = Modifier.padding(16.dp)) {
+                Box(modifier = Modifier.padding(18.dp)) {
                     MarkdownMathView(markdownText = currentQ.questionText)
                 }
             }
@@ -554,20 +551,20 @@ fun OptionCard(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .border(
                 1.dp,
-                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                RoundedCornerShape(12.dp)
+                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                RoundedCornerShape(16.dp)
             )
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isMultiple) {
@@ -597,13 +594,13 @@ fun SelectableCard(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         modifier = modifier
             .border(
                 1.dp,
-                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                RoundedCornerShape(12.dp)
+                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                RoundedCornerShape(16.dp)
             )
             .clickable { onClick() }
     ) {

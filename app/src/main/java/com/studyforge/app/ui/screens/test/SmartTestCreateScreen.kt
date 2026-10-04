@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.studyforge.app.domain.model.SmartTestDistribution
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.viewmodel.StudyViewModel
 
@@ -205,11 +206,8 @@ fun SmartTestCreateScreen(
                 )
             }
 
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ),
+            StudyCard(
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {

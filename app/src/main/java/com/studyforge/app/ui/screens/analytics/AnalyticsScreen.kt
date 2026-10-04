@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.studyforge.app.ui.components.MasteryProgressBar
 import com.studyforge.app.ui.components.SectionHeader
 import com.studyforge.app.ui.components.StatCard
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.components.StudyHeatmap
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.PurpleAccent
@@ -61,11 +63,12 @@ fun AnalyticsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Performance Analytics",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -145,14 +148,10 @@ fun AnalyticsScreen(
                     )
                 } else {
                     analytics.subjectMasteries.forEach { sub ->
-                        Card(
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                        StudyCard(
+                            shape = RoundedCornerShape(20.dp)
                         ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
+                            Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -174,7 +173,7 @@ fun AnalyticsScreen(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(10.dp))
                                 MasteryProgressBar(score = sub.masteryScore, showLabel = false)
                             }
                         }
@@ -190,11 +189,9 @@ fun AnalyticsScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Weak chapters
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = ErrorRed.copy(alpha = 0.08f)
-                    ),
+                StudyCard(
+                    shape = RoundedCornerShape(18.dp),
+                    borderColor = ErrorRed.copy(alpha = 0.35f),
                     modifier = Modifier.weight(1f)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
@@ -215,11 +212,9 @@ fun AnalyticsScreen(
                 }
 
                 // Strong chapters
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = SuccessGreen.copy(alpha = 0.08f)
-                    ),
+                StudyCard(
+                    shape = RoundedCornerShape(18.dp),
+                    borderColor = SuccessGreen.copy(alpha = 0.35f),
                     modifier = Modifier.weight(1f)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {

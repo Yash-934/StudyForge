@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.studyforge.app.data.local.entities.TestEntity
 import com.studyforge.app.domain.model.TestMode
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.ui.theme.WarningYellow
 import com.studyforge.app.viewmodel.StudyViewModel
@@ -191,14 +192,10 @@ fun TestListItemCard(
         else -> MaterialTheme.colorScheme.primary
     }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        ),
-        modifier = Modifier.fillMaxWidth()
+    StudyCard(
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

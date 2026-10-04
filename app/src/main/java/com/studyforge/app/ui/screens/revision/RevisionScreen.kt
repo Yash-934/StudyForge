@@ -40,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.studyforge.app.data.local.entities.RevisionItemEntity
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.SquircleIconBadge
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
@@ -73,22 +75,21 @@ fun RevisionScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                modifier = Modifier.fillMaxWidth()
+            StudyCard(
+                shape = RoundedCornerShape(20.dp),
+                borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
             ) {
                 Row(
-                    modifier = Modifier.padding(14.dp),
+                    modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.NotificationsActive,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                    SquircleIconBadge(
+                        icon = Icons.Default.NotificationsActive,
+                        accentColor = MaterialTheme.colorScheme.primary,
+                        size = 38.dp,
+                        iconSize = 20.dp
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
                     Text(
                         text = "Spaced Repetition Schedule: Intervals scale dynamically (1d → 3d → 7d → 14d → 30d) based on your recall quality.",
                         style = MaterialTheme.typography.bodySmall,
@@ -139,14 +140,10 @@ fun RevisionCard(
 ) {
     val intervalDays = listOf(1, 3, 7, 14, 30).getOrElse(item.intervalLevel) { 1 }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        ),
-        modifier = Modifier.fillMaxWidth()
+    StudyCard(
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -182,7 +179,7 @@ fun RevisionCard(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text("How well did you recall this?", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -190,7 +187,7 @@ fun RevisionCard(
             ) {
                 OutlinedButton(
                     onClick = { onRate(1) },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Hard", color = ErrorRed)
@@ -198,7 +195,7 @@ fun RevisionCard(
 
                 FilledTonalButton(
                     onClick = { onRate(2) },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Good", color = WarningYellow)
@@ -206,7 +203,7 @@ fun RevisionCard(
 
                 Button(
                     onClick = { onRate(3) },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                     modifier = Modifier.weight(1f)
                 ) {

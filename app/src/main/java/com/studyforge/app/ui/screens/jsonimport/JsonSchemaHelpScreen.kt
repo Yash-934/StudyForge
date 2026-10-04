@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.studyforge.app.domain.json.TestJsonParser
 import com.studyforge.app.ui.components.CodeBlockCard
+import com.studyforge.app.ui.components.StudyCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,41 +78,39 @@ fun JsonSchemaHelpScreen(
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            StudyCard(
+                shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text("Top-Level Fields:", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("• title (String, required): Name of the test")
-                    Text("• subject (String, optional): Subject name")
-                    Text("• chapter (String, optional): Chapter name")
-                    Text("• durationMinutes (Int, optional, default 30): Duration")
-                    Text("• totalMarks (Double, optional): Calculated from questions if omitted")
-                    Text("• questions (Array, required): List of question objects")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Top-Level Fields:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("• title (String, required): Name of the test", style = MaterialTheme.typography.bodyMedium)
+                    Text("• subject (String, optional): Subject name", style = MaterialTheme.typography.bodyMedium)
+                    Text("• chapter (String, optional): Chapter name", style = MaterialTheme.typography.bodyMedium)
+                    Text("• durationMinutes (Int, optional, default 30): Duration", style = MaterialTheme.typography.bodyMedium)
+                    Text("• totalMarks (Double, optional): Calculated from questions if omitted", style = MaterialTheme.typography.bodyMedium)
+                    Text("• questions (Array, required): List of question objects", style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            StudyCard(
+                shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text("Question Object Fields:", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("• id (String): Unique question identifier")
-                    Text("• type (String): 'mcq', 'multiple_correct', 'true_false', 'numerical'")
-                    Text("• question (String): Question text (Markdown & LaTeX supported)")
-                    Text("• options (Array of Strings): Required for MCQ / MSQ")
-                    Text("• correctAnswer: 0 (index for MCQ), [0, 2] (indices for MSQ), or '8' (string/number)")
-                    Text("• marks (Double): Marks awarded on correct answer")
-                    Text("• negativeMarks (Double): Penalty deducted on wrong answer")
-                    Text("• explanation (String): Shown AFTER test submission")
-                    Text("• difficulty (String): 'easy', 'medium', 'hard'")
-                    Text("• topic (String): Subtopic name")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Question Object Fields:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("• id (String): Unique question identifier", style = MaterialTheme.typography.bodyMedium)
+                    Text("• type (String): 'mcq', 'multiple_correct', 'true_false', 'numerical'", style = MaterialTheme.typography.bodyMedium)
+                    Text("• question (String): Question text (Markdown & LaTeX supported)", style = MaterialTheme.typography.bodyMedium)
+                    Text("• options (Array of Strings): Required for MCQ / MSQ", style = MaterialTheme.typography.bodyMedium)
+                    Text("• correctAnswer: 0 (index for MCQ), [0, 2] (indices for MSQ), or '8' (string/number)", style = MaterialTheme.typography.bodyMedium)
+                    Text("• marks (Double): Marks awarded on correct answer", style = MaterialTheme.typography.bodyMedium)
+                    Text("• negativeMarks (Double): Penalty deducted on wrong answer", style = MaterialTheme.typography.bodyMedium)
+                    Text("• explanation (String): Shown AFTER test submission", style = MaterialTheme.typography.bodyMedium)
+                    Text("• difficulty (String): 'easy', 'medium', 'hard'", style = MaterialTheme.typography.bodyMedium)
+                    Text("• topic (String): Subtopic name", style = MaterialTheme.typography.bodyMedium)
                 }
             }
 

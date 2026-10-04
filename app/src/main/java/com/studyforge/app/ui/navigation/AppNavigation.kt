@@ -1,8 +1,10 @@
 package com.studyforge.app.ui.navigation
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Folder
@@ -86,6 +88,7 @@ fun AppNavigation(
     val shouldShowBottomBar = currentRoute in bottomNavRoutes
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (shouldShowBottomBar) {
@@ -169,7 +172,7 @@ fun AppNavigation(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(bottom = padding.calculateBottomPadding())
         ) {
             NavHost(
                 navController = navController,

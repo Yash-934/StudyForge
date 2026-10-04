@@ -61,7 +61,9 @@ import androidx.compose.ui.unit.sp
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MasteryProgressBar
 import com.studyforge.app.ui.components.SectionHeader
+import com.studyforge.app.ui.components.SquircleIconBadge
 import com.studyforge.app.ui.components.StatCard
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.screens.ai.AiAssistantDialog
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.PurpleAccent
@@ -152,60 +154,103 @@ fun ChapterDetailScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(4.dp))
-                // Chapter Mastery Hero
-                ElevatedCard(
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+                // Chapter Mastery Hero matching uploaded style
+                StudyCard(
+                    shape = RoundedCornerShape(22.dp)
                 ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "CHAPTER MASTERY",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = 1.sp
-                                ),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "${chapter?.masteryScore ?: 0}%",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        MasteryProgressBar(score = chapter?.masteryScore ?: 0, showLabel = false)
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        // Subtle watermark math symbol
+                        Text(
+                            text = "∫dx",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontSize = 38.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 48.dp, bottom = 40.dp)
+                        )
 
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { onNavigateToSmartTest(chapterId) },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Smart Drill", style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    text = "CHAPTER MASTERY",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = 1.2.sp,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = chapter?.name ?: "Chapter",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = (-0.3).sp,
+                                    fontSize = 24.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (subject != null) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = subject.name,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Normal
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            MasteryProgressBar(score = chapter?.masteryScore ?: 0)
 
-                            FilledTonalButton(
-                                onClick = { onNavigateToNoteEditor(chapterId, -1L) },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("New Note", style = MaterialTheme.typography.labelMedium)
+                                Button(
+                                    onClick = { onNavigateToSmartTest(chapterId) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Smart Drill", style = MaterialTheme.typography.labelMedium)
+                                }
+
+                                FilledTonalButton(
+                                    onClick = { onNavigateToNoteEditor(chapterId, -1L) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("New Note", style = MaterialTheme.typography.labelMedium)
+                                }
                             }
                         }
                     }
@@ -348,69 +393,65 @@ fun ModuleHubCard(
     badgeText: String? = null,
     onClick: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
+    StudyCard(
+        shape = RoundedCornerShape(20.dp),
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(accentColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            SquircleIconBadge(
+                icon = icon,
+                accentColor = accentColor,
+                size = 42.dp,
+                iconSize = 22.dp
+            )
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     if (badgeText != null) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = accentColor.copy(alpha = 0.12f)
+                            shape = RoundedCornerShape(8.dp),
+                            color = accentColor.copy(alpha = 0.14f)
                         ) {
                             Text(
                                 text = badgeText,
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = accentColor,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(18.dp)
-            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(accentColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

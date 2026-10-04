@@ -57,6 +57,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.studyforge.app.ui.components.SectionHeader
+import com.studyforge.app.ui.components.SquircleIconBadge
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.viewmodel.StudyViewModel
 import kotlinx.coroutines.launch
@@ -103,63 +105,65 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // How to Use StudyForge & JSON Guide Card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToHowToUse() }
+            StudyCard(
+                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onNavigateToHowToUse() }
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Icon(
-                            imageVector = Icons.Default.MenuBook,
-                            contentDescription = null,
+                        SquircleIconBadge(
+                            icon = Icons.Default.MenuBook,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
+                            size = 48.dp,
+                            iconSize = 24.dp
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
                         Column {
                             Text(
                                 text = "How to Use StudyForge",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Complete user guide & JSON import format examples",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Open Guide",
-                        tint = MaterialTheme.colorScheme.primary
+                    SquircleIconBadge(
+                        icon = Icons.AutoMirrored.Filled.ArrowForward,
+                        tint = MaterialTheme.colorScheme.primary,
+                        size = 36.dp,
+                        iconSize = 18.dp
                     )
                 }
             }
 
             // Theme Mode
             SectionHeader(title = "Appearance & Theme")
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+            StudyCard(
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("App Color Theme", fontWeight = FontWeight.SemiBold)
+                        SquircleIconBadge(
+                            icon = Icons.Default.Palette,
+                            tint = MaterialTheme.colorScheme.primary,
+                            size = 38.dp,
+                            iconSize = 20.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("App Color Theme", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
                     }
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -177,24 +181,29 @@ fun SettingsScreen(
 
             // AI Configuration
             SectionHeader(title = "AI Study Assistant (Gemini)")
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+            StudyCard(
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = PurpleAccent)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Gemini API Key Configuration", fontWeight = FontWeight.SemiBold)
+                        SquircleIconBadge(
+                            icon = Icons.Default.AutoAwesome,
+                            tint = PurpleAccent,
+                            size = 38.dp,
+                            iconSize = 20.dp,
+                            backgroundColor = PurpleAccent.copy(alpha = 0.12f)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Gemini API Key Configuration", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Configured via AI Studio Secrets panel or overridden here. The app is 100% offline-first and only makes network calls when you explicitly trigger an AI feature.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
                         value = customApiKey,
@@ -206,11 +215,11 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Button(
                         onClick = { viewModel.setGeminiApiKeyOverride(customApiKey) },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Save API Key")
@@ -220,9 +229,8 @@ fun SettingsScreen(
 
             // Backup & Restore
             SectionHeader(title = "Data Management: Backup & Restore")
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+            StudyCard(
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -231,7 +239,7 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -244,7 +252,7 @@ fun SettingsScreen(
                                     showBackupExportDialog = true
                                 }
                             },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -254,7 +262,7 @@ fun SettingsScreen(
 
                         OutlinedButton(
                             onClick = { showRestoreDialog = true },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -267,14 +275,22 @@ fun SettingsScreen(
 
             // About & Privacy
             SectionHeader(title = "About & Privacy")
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+            StudyCard(
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("StudyForge v1.0", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SquircleIconBadge(
+                            icon = Icons.Default.Info,
+                            tint = MaterialTheme.colorScheme.primary,
+                            size = 38.dp,
+                            iconSize = 20.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("StudyForge v1.0", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Modern Personal Learning & Study Operating System.\nBuilt with Kotlin, Jetpack Compose, Material 3, and Room local database.\n\nAll notes, questions, formulas, and attempts remain 100% on your device unless you explicitly prompt Gemini AI.",
                         style = MaterialTheme.typography.bodySmall,

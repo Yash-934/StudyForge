@@ -56,9 +56,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.MasteryProgressBar
 import com.studyforge.app.ui.components.SectionHeader
 import com.studyforge.app.ui.components.StatCard
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
 import com.studyforge.app.viewmodel.StudyViewModel
@@ -271,16 +273,11 @@ fun SubjectDetailScreen(
                             }
                         } else {
                             items(subjectNotes) { note ->
-                                Card(
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                    ),
-                                    modifier = Modifier.fillMaxWidth().clickable {
-                                        onNavigateToNoteEditor(note.chapterId)
-                                    }
+                                StudyCard(
+                                    shape = RoundedCornerShape(18.dp),
+                                    onClick = { onNavigateToNoteEditor(note.chapterId) }
                                 ) {
-                                    Column(modifier = Modifier.padding(14.dp)) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
                                         Text(
                                             text = note.title,
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
@@ -308,16 +305,12 @@ fun SubjectDetailScreen(
                             }
                         } else {
                             items(subjectQuestions) { q ->
-                                Card(
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                StudyCard(
+                                    shape = RoundedCornerShape(18.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(14.dp)) {
-                                        Text(
-                                            text = q.questionText,
-                                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        MarkdownMathView(markdownText = q.questionText)
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Text(
                                             text = "${q.type.displayName} • ${q.marks} marks • ${q.difficulty.displayName}",
                                             style = MaterialTheme.typography.labelSmall,
@@ -340,16 +333,15 @@ fun SubjectDetailScreen(
                             }
                         } else {
                             items(subjectTests) { test ->
-                                Card(
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                StudyCard(
+                                    shape = RoundedCornerShape(18.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(14.dp)) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
                                         Text(
                                             text = test.title,
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Text(
                                             text = "${test.durationMinutes} mins • ${test.totalMarks} marks • Mode: ${test.mode.displayName}",
                                             style = MaterialTheme.typography.labelSmall,
@@ -385,17 +377,12 @@ fun ChapterCardRow(
     chap: com.studyforge.app.data.local.entities.ChapterEntity,
     onClick: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
+    StudyCard(
+        shape = RoundedCornerShape(20.dp),
+        onClick = onClick
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -405,15 +392,24 @@ fun ChapterCardRow(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 MasteryProgressBar(score = chap.masteryScore)
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline
-            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package com.studyforge.app.ui.screens.flashcards
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,6 +59,7 @@ import com.studyforge.app.domain.model.Difficulty
 import com.studyforge.app.ui.components.DifficultyBadge
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MarkdownMathView
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
@@ -137,20 +139,16 @@ fun FlashcardsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Flippable 3D Card
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isFlipped) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                        else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                    ),
+                StudyCard(
+                    shape = RoundedCornerShape(22.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(300.dp)
                         .graphicsLayer {
                             rotationY = rotation
                             cameraDistance = 12f * density
-                        }
-                        .clickable { isFlipped = !isFlipped }
+                        },
+                    onClick = { isFlipped = !isFlipped }
                 ) {
                     Box(
                         modifier = Modifier

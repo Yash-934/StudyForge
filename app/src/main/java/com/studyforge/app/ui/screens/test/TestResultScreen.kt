@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.studyforge.app.data.local.entities.TestAttemptEntity
 import com.studyforge.app.ui.components.StatCard
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
@@ -114,12 +115,8 @@ fun TestResultScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Hero Score Card
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier.fillMaxWidth()
+            StudyCard(
+                shape = RoundedCornerShape(22.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),
@@ -196,14 +193,10 @@ fun TestResultScreen(
             }
 
             // Time Breakdown Card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                ),
-                modifier = Modifier.fillMaxWidth()
+            StudyCard(
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "Time & Speed Analytics",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)

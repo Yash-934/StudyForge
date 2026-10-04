@@ -51,6 +51,7 @@ import com.studyforge.app.data.local.entities.MistakeEntity
 import com.studyforge.app.data.local.entities.QuestionEntity
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MarkdownMathView
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.viewmodel.StudyViewModel
@@ -191,14 +192,10 @@ fun MistakeCard(
     chapterName: String,
     onMarkResolved: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        ),
-        modifier = Modifier.fillMaxWidth()
+    StudyCard(
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

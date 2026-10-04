@@ -64,6 +64,8 @@ import com.studyforge.app.data.local.entities.JournalEntity
 import com.studyforge.app.data.local.entities.TimetableEntity
 import com.studyforge.app.domain.model.Mood
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.SquircleIconBadge
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.viewmodel.StudyViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -170,60 +172,71 @@ fun PlannerScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(timetable) { slot ->
-                            Card(
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                            StudyCard(
+                                shape = RoundedCornerShape(20.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(14.dp),
+                                    modifier = Modifier.padding(16.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = "${days.getOrElse(slot.dayOfWeek - 1) { "Day" }} • ${slot.startTime} - ${slot.endTime}",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            if (slot.reminderEnabled) {
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = MaterialTheme.colorScheme.primaryContainer
-                                                ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        SquircleIconBadge(
+                                            icon = Icons.Default.Schedule,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            size = 46.dp,
+                                            iconSize = 22.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(14.dp))
+                                        Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = "${days.getOrElse(slot.dayOfWeek - 1) { "Day" }} • ${slot.startTime} - ${slot.endTime}",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                if (slot.reminderEnabled) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = MaterialTheme.colorScheme.primaryContainer
                                                     ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Alarm,
-                                                            contentDescription = "Alarm Active",
-                                                            tint = MaterialTheme.colorScheme.primary,
-                                                            modifier = Modifier.size(12.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(3.dp))
-                                                        Text(
-                                                            text = "Alarm On",
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                        )
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Alarm,
+                                                                contentDescription = "Alarm Active",
+                                                                tint = MaterialTheme.colorScheme.primary,
+                                                                modifier = Modifier.size(12.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(3.dp))
+                                                            Text(
+                                                                text = "Alarm On",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = slot.subjectName.ifBlank { "Study Session" },
+                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                            )
+                                            Text(
+                                                text = slot.chapterOrTask,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = slot.subjectName.ifBlank { "Study Session" },
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                        )
-                                        Text(
-                                            text = slot.chapterOrTask,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
                                     }
 
                                     Row(verticalAlignment = Alignment.CenterVertically) {

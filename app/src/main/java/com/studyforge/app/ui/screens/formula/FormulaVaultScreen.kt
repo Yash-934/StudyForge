@@ -56,6 +56,7 @@ import com.studyforge.app.data.local.entities.FormulaEntity
 import com.studyforge.app.ui.components.BlockMathCard
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MathEditorToolbar
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.viewmodel.StudyViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -226,14 +227,10 @@ fun FormulaVaultCard(
 ) {
     var isRevealed by remember(isRevisionMode) { mutableStateOf(!isRevisionMode) }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        ),
-        modifier = Modifier.fillMaxWidth()
+    StudyCard(
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -328,9 +325,14 @@ fun AddFormulaDialog(
                     value = latex,
                     onValueChange = { latex = it },
                     label = { Text("LaTeX Equation *") },
-                    placeholder = { Text("e.g. \\int u dv = uv - \\int v du") },
+                    placeholder = { Text("e.g. \\Delta W_B = \\int_a^b f(x) dx") },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                if (latex.isNotBlank()) {
+                    Text("Formula Preview:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    BlockMathCard(rawLatex = latex)
+                }
 
                 OutlinedTextField(
                     value = explanation,

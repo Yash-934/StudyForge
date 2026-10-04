@@ -66,6 +66,8 @@ import com.studyforge.app.domain.model.TestValidationResult
 import com.studyforge.app.ui.components.DifficultyBadge
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MarkdownMathView
+import com.studyforge.app.ui.components.SquircleIconBadge
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
@@ -183,12 +185,10 @@ fun JsonImportScreen(
                 }
             } else {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { filePickerLauncher.launch("application/json") }
+                    StudyCard(
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { filePickerLauncher.launch("application/json") }
                     ) {
                         Column(
                             modifier = Modifier
@@ -196,9 +196,15 @@ fun JsonImportScreen(
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(imageVector = Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Choose .json file from device storage", fontWeight = FontWeight.Bold)
+                            SquircleIconBadge(
+                                icon = Icons.Default.UploadFile,
+                                tint = MaterialTheme.colorScheme.primary,
+                                size = 52.dp,
+                                iconSize = 28.dp
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("Choose .json file from device storage", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text("Tap here to open the Android File Picker", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -215,7 +221,7 @@ fun JsonImportScreen(
                         onClick = {
                             validationResult = viewModel.validateJson(jsonInput)
                         },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Validate JSON")
@@ -223,7 +229,7 @@ fun JsonImportScreen(
 
                     OutlinedButton(
                         onClick = onNavigateToSchemaHelp,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("View Schema")
                     }
@@ -233,22 +239,20 @@ fun JsonImportScreen(
             // Validation Results Diagnostic Display
             validationResult?.let { res ->
                 item {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (res.validQuestionsCount > 0) SuccessGreen.copy(alpha = 0.10f) else ErrorRed.copy(alpha = 0.10f)
-                        ),
+                    StudyCard(
+                        shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (res.validQuestionsCount > 0) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
-                                    contentDescription = null,
+                                SquircleIconBadge(
+                                    icon = if (res.validQuestionsCount > 0) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
                                     tint = if (res.validQuestionsCount > 0) SuccessGreen else ErrorRed,
-                                    modifier = Modifier.size(24.dp)
+                                    size = 44.dp,
+                                    iconSize = 24.dp,
+                                    backgroundColor = if (res.validQuestionsCount > 0) SuccessGreen.copy(alpha = 0.12f) else ErrorRed.copy(alpha = 0.12f)
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
                                         text = "Validation: ${res.validQuestionsCount} Valid Questions",
@@ -256,7 +260,8 @@ fun JsonImportScreen(
                                     )
                                     Text(
                                         text = "Title: ${res.testDto.title} • ${res.testDto.durationMinutes} mins • ${res.testDto.totalMarks} marks",
-                                        style = MaterialTheme.typography.bodySmall
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -279,9 +284,8 @@ fun JsonImportScreen(
                 if (res.validQuestionsCount > 0) {
                     // Import Mode Selector
                     item {
-                        Card(
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                        StudyCard(
+                            shape = RoundedCornerShape(20.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -317,8 +321,8 @@ fun JsonImportScreen(
                         val activeSub = subjects.find { it.id == activeChap?.subjectId } ?: subjects.firstOrNull()
                         val activeBatch = batches.find { it.id == activeSub?.batchId } ?: batches.firstOrNull()
 
-                        Card(
-                            shape = RoundedCornerShape(14.dp),
+                        StudyCard(
+                            shape = RoundedCornerShape(18.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
@@ -347,7 +351,7 @@ fun JsonImportScreen(
                                 )
                                 onBack()
                             },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -365,11 +369,11 @@ fun JsonImportScreen(
                     }
 
                     itemsIndexed(res.testDto.questions) { idx, q ->
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
+                        StudyCard(
+                            shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(14.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
@@ -377,7 +381,7 @@ fun JsonImportScreen(
                                     Text("Q${idx + 1}. ${q.type.displayName}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                     DifficultyBadge(difficulty = q.difficulty)
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 MarkdownMathView(markdownText = q.question)
                             }
                         }

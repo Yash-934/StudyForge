@@ -56,6 +56,8 @@ import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.ui.components.DifficultyBadge
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MarkdownMathView
+import com.studyforge.app.ui.components.MathRichTextView
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.viewmodel.StudyViewModel
 import org.json.JSONArray
 
@@ -242,14 +244,10 @@ fun QuestionBankCard(
         }
     }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        ),
-        modifier = Modifier.fillMaxWidth()
+    StudyCard(
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -282,12 +280,25 @@ fun QuestionBankCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 optionsList.forEachIndexed { idx, opt ->
                     val letter = ('A' + idx).toChar()
-                    Text(
-                        text = "$letter) $opt",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "$letter) ",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Box(modifier = Modifier.weight(1f)) {
+                            MathRichTextView(
+                                text = opt,
+                                fontSizeSp = 15,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
                 }
             }
 

@@ -46,6 +46,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.SquircleIconBadge
+import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.viewmodel.StudyViewModel
 
 data class SearchResultItem(
@@ -150,26 +152,22 @@ fun GlobalSearchScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(results) { res ->
-                        Card(
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onNavigateToChapter(res.destinationChapterId) }
+                        StudyCard(
+                            shape = RoundedCornerShape(18.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onNavigateToChapter(res.destinationChapterId) }
                         ) {
                             Row(
-                                modifier = Modifier.padding(14.dp),
+                                modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = res.icon,
-                                    contentDescription = null,
+                                SquircleIconBadge(
+                                    icon = res.icon,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    size = 42.dp,
+                                    iconSize = 22.dp
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(14.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
@@ -177,7 +175,7 @@ fun GlobalSearchScreen(
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                             maxLines = 1
                                         )
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -198,11 +196,11 @@ fun GlobalSearchScreen(
                                         maxLines = 1
                                     )
                                 }
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.outline,
-                                    modifier = Modifier.size(16.dp)
+                                SquircleIconBadge(
+                                    icon = Icons.AutoMirrored.Filled.ArrowForward,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    size = 32.dp,
+                                    iconSize = 16.dp
                                 )
                             }
                         }

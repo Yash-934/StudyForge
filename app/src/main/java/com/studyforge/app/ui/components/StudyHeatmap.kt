@@ -1,5 +1,6 @@
 package com.studyforge.app.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.studyforge.app.data.local.entities.StudySessionEntity
+import com.studyforge.app.ui.theme.isAppDark
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -92,10 +96,17 @@ fun StudyHeatmap(
 
     var selectedDay by remember { mutableStateOf<DayActivity?>(null) }
     val scrollState = rememberScrollState(Int.MAX_VALUE) // Scroll to most recent
+    val isDark = isAppDark()
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = if (isDark) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        },
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -202,7 +213,7 @@ private fun HeatmapCell(
 private fun getHeatmapColor(minutes: Int): Color {
     val primary = MaterialTheme.colorScheme.primary
     return when {
-        minutes == 0 -> MaterialTheme.colorScheme.surface
+        minutes == 0 -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
         minutes < 25 -> primary.copy(alpha = 0.35f)
         minutes < 60 -> primary.copy(alpha = 0.65f)
         else -> primary
