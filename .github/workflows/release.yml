@@ -60,12 +60,20 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '9.3.1'
 
-      - name: Make Gradle Wrapper Executable
-        run: chmod +x gradlew || true
+      - name: Ensure Gradle Wrapper
+        run: |
+          mkdir -p gradle/wrapper
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "gradle-wrapper.jar is missing from checkout, fetching wrapper jar..."
+            curl -f -sLo gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v9.3.1/gradle/wrapper/gradle-wrapper.jar || gradle wrapper
+          fi
+          chmod +x gradlew || true
 
       - name: Build Android APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
 
       - name: Prepare Release APK Artifact
         run: |
