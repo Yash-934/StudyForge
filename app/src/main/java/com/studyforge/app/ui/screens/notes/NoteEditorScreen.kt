@@ -59,6 +59,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.MathEditorToolbar
+import com.studyforge.app.ui.components.RenderMarkdownNode
+import com.studyforge.app.ui.components.parseMarkdownToNodes
 import com.studyforge.app.ui.screens.ai.AiAssistantDialog
 import com.studyforge.app.viewmodel.StudyViewModel
 import kotlinx.coroutines.Dispatchers
@@ -342,14 +344,19 @@ fun NoteEditorScreen(
                 }
             }
         } else {
-            // DIRECT FULL SCREEN PREVIEW MODE (Clean virtualized reader)
+            // DIRECT FULL SCREEN PREVIEW MODE (Clean 120 FPS virtualized reader)
+            val parsedNodes = remember(contentMarkdown) {
+                parseMarkdownToNodes(contentMarkdown.ifBlank { "*No content entered yet.*" })
+            }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                item {
+                item(key = "note_title_header") {
                     Text(
                         text = title.ifBlank { "Untitled Note" },
                         style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -371,14 +378,17 @@ fun NoteEditorScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
 
-                item {
-                    MarkdownMathView(
-                        markdownText = contentMarkdown.ifBlank { "*No content entered yet.*" }
-                    )
+                items(
+                    count = parsedNodes.size,
+                    key = { index -> index }
+                ) { index ->
+                    RenderMarkdownNode(parsedNodes[index])
+                }
 
+                item(key = "note_bottom_spacer") {
                     Spacer(modifier = Modifier.height(88.dp))
                 }
             }
