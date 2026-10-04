@@ -2,8 +2,15 @@ name: Build & Release Android App
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
   workflow_dispatch:
     inputs:
       tag_name:
@@ -39,13 +46,25 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Accept Android SDK Licenses
+      - name: Accept Android SDK Licenses & Setup Env
         run: |
           mkdir -p "$ANDROID_HOME/licenses" || true
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license" || true
           echo "84831b9409646a3e80447306f0366590b39fb673" >> "$ANDROID_HOME/licenses/android-sdk-license" || true
           echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "$ANDROID_HOME/licenses/android-sdk-license" || true
           yes | sdkmanager --licenses || true
+
+          # Ensure .env exists so secrets-gradle-plugin never fails
+          if [ ! -f ".env" ]; then
+            touch .env
+            echo "Created empty .env file for build"
+          fi
+
+          # Ensure fallback dummy google-services.json if any tool checks for it
+          if [ ! -f "app/google-services.json" ]; then
+            mkdir -p app
+            echo '{"project_info":{"project_number":"123456789","project_id":"studyforge-app","storage_bucket":"studyforge-app.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789:android:abcdef","android_client_info":{"package_name":"com.studyforge.app"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyFakeKeyForBuildOnly12345"}],"services":{"analytics_service":{"status":1}}}]}' > app/google-services.json
+          fi
 
       - name: Ensure Debug Keystore
         run: |
@@ -73,7 +92,11 @@ jobs:
           chmod +x gradlew || true
 
       - name: Build Android APK
-        run: ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
+        env:
+          JAVA_OPTS: "-Djava.awt.headless=true -Dorg.gradle.jvmargs='-Xmx3072m -Djava.awt.headless=true'"
+          GRADLE_OPTS: "-Djava.awt.headless=true -Dorg.gradle.jvmargs='-Xmx3072m -Djava.awt.headless=true'"
+        run: |
+          ./gradlew assembleDebug --no-daemon --stacktrace || gradle assembleDebug --no-daemon --stacktrace
 
       - name: Prepare Release APK Artifact
         run: |
@@ -101,14 +124,20 @@ jobs:
             echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
             echo "title=${{ github.event.inputs.release_title || github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
             echo "notes=${{ github.event.inputs.release_notes }}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
             echo "tag=$TAG" >> $GITHUB_OUTPUT
             echo "title=StudyForge $TAG" >> $GITHUB_OUTPUT
             echo "notes=Automated release for tag $TAG" >> $GITHUB_OUTPUT
+          else
+            SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+            echo "tag=v1.0-$SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "title=StudyForge Build $SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "notes=Continuous automated build for commit $SHORT_SHA" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_info.outputs.tag }}
@@ -126,6 +155,7 @@ jobs:
             - Left/Right edge swipe-back gesture navigation
             - Question bank, smart test generator, mistake notebook, and spaced repetition flashcards
             - JSON test import & export and full offline backup
+            - Gemini AI Assistant with auto-fallback & hidden password masking
 
             #### Downloads
             - **StudyForge.apk**: Direct Android installation package
