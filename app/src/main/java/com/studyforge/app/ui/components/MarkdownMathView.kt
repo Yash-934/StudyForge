@@ -251,25 +251,13 @@ fun MarkdownMathView(
                     )
                 }
                 line.isNotBlank() -> {
-                    val containsLatexOrMath = line.contains("\\") || line.contains("$") ||
-                        (line.contains("^") && !line.startsWith(" ")) ||
-                        line.contains("∫") || line.contains("∑") || line.contains("√") || line.contains("π")
-
-                    if (containsLatexOrMath) {
-                        MathRichTextView(
-                            text = line,
-                            fontSizeSp = 16,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        val annotated = parseInlineMarkdownAndLatex(line)
-                        Text(
-                            text = annotated,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 24.sp
-                        )
-                    }
+                    val annotated = parseInlineMarkdownAndLatex(line)
+                    Text(
+                        text = annotated,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 24.sp
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
                 else -> {
