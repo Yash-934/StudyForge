@@ -376,9 +376,12 @@ fun ChapterDetailScreen(
     if (showAiDialog && chapter != null) {
         val notesContext = chapterNotes.joinToString("\n\n") { "${it.title}:\n${it.contentMarkdown}" }
         AiAssistantDialog(
-            title = "AI Study Assistant: ${chapter.name}",
+            title = chapter.name,
             contextText = notesContext.ifBlank { "Chapter: ${chapter.name} in Subject ${subject?.name}" },
             viewModel = viewModel,
+            chapterId = chapter.id,
+            subjectId = chapter.subjectId,
+            batchId = chapter.batchId,
             onDismiss = { showAiDialog = false }
         )
     }

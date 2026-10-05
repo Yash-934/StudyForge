@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,16 +20,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -37,6 +42,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,9 +59,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.studyforge.app.data.local.entities.TestAttemptEntity
+import com.studyforge.app.domain.ai.AiResponse
+import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.StatCard
 import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
+import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
 import com.studyforge.app.viewmodel.StudyViewModel
@@ -70,7 +79,9 @@ fun TestResultScreen(
     modifier: Modifier = Modifier
 ) {
     val attempts by viewModel.attempts.collectAsState()
+    val aiState by viewModel.aiResponseState.collectAsState()
     var attempt by remember { mutableStateOf<TestAttemptEntity?>(null) }
+    var showAiEvaluationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(attemptId, attempts) {
         val found = attempts.find { it.id == attemptId }
@@ -221,6 +232,19 @@ fun TestResultScreen(
             }
 
             // Action Buttons
+            FilledTonalButton(
+                onClick = {
+                    showAiEvaluationDialog = true
+                    viewModel.askAiToEvaluateTestAttempt(att.id)
+                },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = PurpleAccent, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("AI Deep Evaluation & Misconception Diagnosis", fontWeight = FontWeight.Bold)
+            }
+
             Button(
                 onClick = { onNavigateToReview(att.id) },
                 shape = RoundedCornerShape(12.dp),
@@ -241,5 +265,102 @@ fun TestResultScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showAiEvaluationDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.resetAiState()
+                showAiEvaluationDialog = false
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = PurpleAccent, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("AI Test Evaluation", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    when (val state = aiState) {
+                        is AiResponse.Loading -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(modifier = Modifier.size(36.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text("Gemini is diagnosing your test responses...", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                        is AiResponse.Success -> {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 120.dp, max = 340.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(14.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    MarkdownMathView(markdownText = state.data)
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        viewModel.saveAiGeneratedSummaryAsNote(
+                                            chapterId = 1L,
+                                            subjectId = 1L,
+                                            batchId = 1L,
+                                            title = "AI Evaluation: ${attempt?.testTitle ?: "Test"}",
+                                            content = state.data
+                                        )
+                                        showAiEvaluationDialog = false
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Save Evaluation as Note")
+                                }
+                            }
+                        }
+                        is AiResponse.Error -> {
+                            Text(
+                                text = "Notice: ${state.message}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        AiResponse.Idle -> {}
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.resetAiState()
+                        showAiEvaluationDialog = false
+                    }
+                ) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }

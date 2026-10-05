@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -298,6 +299,7 @@ fun NoteEditorScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .imePadding()
             ) {
                 // Math & Formatting quick insertion toolbar with Gallery Image Picker
                 MathEditorToolbar(
@@ -340,7 +342,7 @@ fun NoteEditorScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(72.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         } else {
@@ -400,6 +402,23 @@ fun NoteEditorScreen(
             title = title.ifBlank { "Note" },
             contextText = contentMarkdown,
             viewModel = viewModel,
+            chapterId = chapterId,
+            subjectId = chapter?.subjectId ?: 1L,
+            batchId = chapter?.batchId ?: 1L,
+            onInsertIntoNote = { insertedContent ->
+                val newContent = contentMarkdown + insertedContent
+                contentMarkdown = newContent
+                viewModel.saveNote(
+                    id = existingNote?.id ?: 0L,
+                    chapterId = chapterId,
+                    subjectId = chapter?.subjectId ?: 1L,
+                    batchId = chapter?.batchId ?: 1L,
+                    title = title.ifBlank { "Untitled Note" },
+                    contentMarkdown = newContent,
+                    isFavorite = isFavorite,
+                    isPinned = isPinned
+                )
+            },
             onDismiss = { showAiDialog = false }
         )
     }

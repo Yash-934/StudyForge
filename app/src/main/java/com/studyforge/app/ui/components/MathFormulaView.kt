@@ -55,6 +55,17 @@ fun MathFormulaView(
         prepareLatexForKaTeX(latex)
     }
 
+    val lineCount = remember(cleanLatex) { cleanLatex.lines().size }
+    val dynamicMinHeight = remember(cleanLatex, lineCount, displayMode, minHeight) {
+        when {
+            cleanLatex.contains("\\begin{array}") || cleanLatex.contains("\\begin{cases}") -> maxOf(140.dp, (lineCount * 32).dp)
+            cleanLatex.contains("\\frac") && cleanLatex.contains("\\boxed") -> 96.dp
+            cleanLatex.contains("\\boxed") -> 88.dp
+            lineCount > 2 -> maxOf(minHeight, (lineCount * 28).dp)
+            else -> minHeight
+        }
+    }
+
     val html = remember(cleanLatex, colorHex, fontSizeSp, displayMode) {
         buildKaTeXBlockHtml(
             latex = cleanLatex,
@@ -65,11 +76,11 @@ fun MathFormulaView(
     }
 
     // Give ample vertical clearance so tall fractions, integrals with limits, cases, and powers are NEVER cut off
-    val calculatedHeightDp = remember(webViewHeightDp, minHeight) {
+    val calculatedHeightDp = remember(webViewHeightDp, dynamicMinHeight) {
         if (webViewHeightDp > 0) {
-            maxOf(webViewHeightDp.dp + 16.dp, minHeight)
+            maxOf(webViewHeightDp.dp + 16.dp, dynamicMinHeight)
         } else {
-            minHeight
+            dynamicMinHeight
         }
     }
 
@@ -391,35 +402,39 @@ private fun buildKaTeXBlockHtml(
                     -webkit-overflow-scrolling: touch;
                 }
                 body {
-                    padding: 6px 8px;
+                    padding: 4px 8px;
                     display: block;
-                    text-align: left;
+                    text-align: center;
                 }
                 .math-wrapper {
                     display: inline-block;
                     min-width: 100%;
-                    text-align: left;
-                    padding-left: 2px;
-                    padding-right: 20px;
-                    white-space: nowrap;
+                    text-align: center;
+                    padding: 4px 10px;
                 }
                 #math-container {
                     display: inline-block;
                     color: $colorHex;
                     font-size: ${fontSizeSp}px;
-                    text-align: left;
-                    padding: 4px 0;
+                    text-align: center;
+                    padding: 2px 0;
                 }
                 .katex-display {
                     margin: 0 !important;
                     padding: 4px 0 !important;
-                    text-align: left !important;
+                    text-align: center !important;
                 }
                 .katex {
                     color: $colorHex !important;
-                    font-size: 1.15em !important;
-                    line-height: 1.5 !important;
-                    text-align: left !important;
+                    font-size: 1.18em !important;
+                    line-height: 1.45 !important;
+                    text-align: center !important;
+                }
+                .katex .boxed, .katex .fbox {
+                    border: 2px solid $colorHex !important;
+                    padding: 8px 14px !important;
+                    border-radius: 8px !important;
+                    background: rgba(128, 128, 128, 0.05) !important;
                 }
                 .katex .mfrac .vlist-t {
                     vertical-align: middle !important;

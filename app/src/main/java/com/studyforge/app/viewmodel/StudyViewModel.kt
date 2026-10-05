@@ -25,15 +25,18 @@ import com.studyforge.app.domain.ai.AiResponse
 import com.studyforge.app.domain.ai.AiStudyAssistant
 import com.studyforge.app.domain.ai.GeminiAiStudyAssistant
 import com.studyforge.app.domain.json.BackupManager
+import com.studyforge.app.domain.json.CurriculumJsonParser
+import com.studyforge.app.domain.json.CurriculumValidationResult
 import com.studyforge.app.domain.json.TestJsonParser
 import com.studyforge.app.domain.model.Difficulty
 import com.studyforge.app.domain.model.GlobalAnalytics
+import com.studyforge.app.domain.model.Mood
 import com.studyforge.app.domain.model.QuestionDto
 import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.domain.model.SmartTestDistribution
 import com.studyforge.app.domain.model.SmartTestGenerator
+import com.studyforge.app.domain.model.TestImportDto
 import com.studyforge.app.domain.model.TestMode
-import com.studyforge.app.domain.model.TestScoringSummary
 import com.studyforge.app.domain.model.TestValidationResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -44,38 +47,29 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
-import org.json.JSONObject
 
 class StudyViewModel(
     val repository: StudyRepository,
-    val preferencesRepository: PreferencesRepository,
+    private val preferencesRepository: PreferencesRepository,
     private val db: AppDatabase
 ) : ViewModel() {
 
-    // Preferences
+    // Preferences / Settings State
     val themeMode: StateFlow<String> = preferencesRepository.themeMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "SYSTEM")
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "SYSTEM")
 
     val geminiApiKeyOverride: StateFlow<String> = preferencesRepository.geminiApiKeyOverride
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
-    // AI Assistant
-    val aiAssistant: AiStudyAssistant = GeminiAiStudyAssistant {
-        geminiApiKeyOverride.value
-    }
+    // Global AI Assistant initialized with preferences provider
+    val aiAssistant: AiStudyAssistant = GeminiAiStudyAssistant(
+        userApiKeyProvider = { preferencesRepository.getGeminiApiKeyOverrideSync() }
+    )
 
-    private val _aiResponseState = MutableStateFlow<AiResponse<String>>(AiResponse.Idle)
-    val aiResponseState: StateFlow<AiResponse<String>> = _aiResponseState.asStateFlow()
-
-    private val _generatedQuestionsState = MutableStateFlow<AiResponse<List<QuestionDto>>>(AiResponse.Idle)
-    val generatedQuestionsState: StateFlow<AiResponse<List<QuestionDto>>> = _generatedQuestionsState.asStateFlow()
-
-    // Global Streams
+    // Data streams from repository
     val batches: StateFlow<List<BatchEntity>> = repository.allBatches
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -100,16 +94,18 @@ class StudyViewModel(
     val attempts: StateFlow<List<TestAttemptEntity>> = repository.completedAttempts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val unresolvedMistakes: StateFlow<List<MistakeEntity>> = repository.unresolvedMistakes
+    val allMistakes: StateFlow<List<MistakeEntity>> = repository.allMistakes
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allMistakes: StateFlow<List<MistakeEntity>> = repository.allMistakes
+    val mistakes: StateFlow<List<MistakeEntity>> get() = allMistakes
+
+    val unresolvedMistakes: StateFlow<List<MistakeEntity>> = repository.unresolvedMistakes
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val flashcards: StateFlow<List<FlashcardEntity>> = repository.allFlashcards
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val sessions: StateFlow<List<StudySessionEntity>> = repository.allSessions
+    val revisionDueItems: StateFlow<List<RevisionItemEntity>> = repository.getRevisionDueItems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val timetable: StateFlow<List<TimetableEntity>> = repository.allTimetable
@@ -118,22 +114,33 @@ class StudyViewModel(
     val journals: StateFlow<List<JournalEntity>> = repository.allJournals
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val revisionDueItems: StateFlow<List<RevisionItemEntity>> = repository.getRevisionDueItems()
+    val sessions: StateFlow<List<StudySessionEntity>> = repository.allSessions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val analytics: StateFlow<GlobalAnalytics> = repository.getGlobalAnalytics()
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            GlobalAnalytics(0, 0, 0, 0.0, 0.0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList(), emptyList())
+            GlobalAnalytics()
         )
 
-    // User Message Toast Event
+    // UI Feedback events (Toasts/Snackbars)
     private val _userMessage = MutableSharedFlow<String>()
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
 
+    // Import Validation State
+    private val _importValidationResult = MutableStateFlow<TestValidationResult?>(null)
+    val importValidationResult: StateFlow<TestValidationResult?> = _importValidationResult.asStateFlow()
+
+    // AI Responses State
+    private val _aiResponseState = MutableStateFlow<AiResponse<String>>(AiResponse.Idle)
+    val aiResponseState: StateFlow<AiResponse<String>> = _aiResponseState.asStateFlow()
+
+    private val _generatedQuestionsState = MutableStateFlow<AiResponse<List<QuestionDto>>>(AiResponse.Idle)
+    val generatedQuestionsState: StateFlow<AiResponse<List<QuestionDto>>> = _generatedQuestionsState.asStateFlow()
+
     // -------------------------------------------------------------
-    // Active Test Taking State
+    // Test Taking State
     // -------------------------------------------------------------
     private val _activeTest = MutableStateFlow<TestEntity?>(null)
     val activeTest: StateFlow<TestEntity?> = _activeTest.asStateFlow()
@@ -153,41 +160,43 @@ class StudyViewModel(
     private val _timeRemainingSeconds = MutableStateFlow(0)
     val timeRemainingSeconds: StateFlow<Int> = _timeRemainingSeconds.asStateFlow()
 
-    private val _questionTimeSpent = MutableStateFlow<Map<Long, Int>>(emptyMap())
-    val questionTimeSpent: StateFlow<Map<Long, Int>> = _questionTimeSpent.asStateFlow()
-
     private var activeAttemptId: Long = 0L
-    private var timerJob: Job? = null
+    private val questionTimeSpent = mutableMapOf<Long, Int>()
+    private var testTimerJob: Job? = null
 
-    private val _lastSubmissionSummary = MutableStateFlow<TestScoringSummary?>(null)
-    val lastSubmissionSummary: StateFlow<TestScoringSummary?> = _lastSubmissionSummary.asStateFlow()
-
-    init {
+    fun showMessage(message: String) {
         viewModelScope.launch {
-            // Seed sample data on first run if database is empty
-            repository.seedSampleDataIfEmpty()
+            _userMessage.emit(message)
         }
     }
 
-    fun showMessage(msg: String) {
-        viewModelScope.launch { _userMessage.emit(msg) }
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch {
+            preferencesRepository.setThemeMode(mode)
+        }
+    }
+
+    fun setGeminiApiKeyOverride(key: String) {
+        viewModelScope.launch {
+            preferencesRepository.setGeminiApiKeyOverride(key.trim())
+            showMessage(if (key.isBlank()) "Reset to default Gemini API" else "Gemini API key saved")
+        }
     }
 
     // -------------------------------------------------------------
-    // Batch, Subject, Chapter CRUD
+    // Batch Management
     // -------------------------------------------------------------
-    fun createBatch(name: String, courseOrClass: String, session: String, goal: String, description: String) {
+    fun createBatch(name: String, course: String, session: String, goal: String, description: String = "") {
         viewModelScope.launch {
-            val id = repository.insertBatch(
-                BatchEntity(
-                    name = name.trim(),
-                    courseOrClass = courseOrClass.trim(),
-                    session = session.trim(),
-                    goal = goal.trim(),
-                    description = description.trim()
-                )
+            val b = BatchEntity(
+                name = name.trim(),
+                courseOrClass = course.trim(),
+                session = session.trim(),
+                goal = goal.trim(),
+                description = description.trim()
             )
-            showMessage("Batch created successfully")
+            repository.insertBatch(b)
+            showMessage("Batch created: $name")
         }
     }
 
@@ -198,12 +207,19 @@ class StudyViewModel(
         }
     }
 
-    fun createSubject(batchId: Long, name: String, iconName: String = "book", colorHex: String = "#4F46E5") {
+    // -------------------------------------------------------------
+    // Subject Management
+    // -------------------------------------------------------------
+    fun createSubject(batchId: Long, name: String, icon: String = "book", colorHex: String = "#4F46E5") {
         viewModelScope.launch {
-            repository.insertSubject(
-                SubjectEntity(batchId = batchId, name = name.trim(), iconName = iconName, colorHex = colorHex)
+            val s = SubjectEntity(
+                batchId = batchId,
+                name = name.trim(),
+                iconName = icon,
+                colorHex = colorHex
             )
-            showMessage("Subject created")
+            repository.insertSubject(s)
+            showMessage("Subject created: $name")
         }
     }
 
@@ -214,12 +230,18 @@ class StudyViewModel(
         }
     }
 
+    // -------------------------------------------------------------
+    // Chapter Management
+    // -------------------------------------------------------------
     fun createChapter(subjectId: Long, batchId: Long, name: String) {
         viewModelScope.launch {
-            repository.insertChapter(
-                ChapterEntity(subjectId = subjectId, batchId = batchId, name = name.trim())
+            val c = ChapterEntity(
+                subjectId = subjectId,
+                batchId = batchId,
+                name = name.trim()
             )
-            showMessage("Chapter created")
+            repository.insertChapter(c)
+            showMessage("Chapter created: $name")
         }
     }
 
@@ -231,10 +253,10 @@ class StudyViewModel(
     }
 
     // -------------------------------------------------------------
-    // Notes CRUD
+    // Note Management
     // -------------------------------------------------------------
     fun saveNote(
-        id: Long = 0,
+        id: Long = 0L,
         chapterId: Long,
         subjectId: Long,
         batchId: Long,
@@ -250,7 +272,7 @@ class StudyViewModel(
                 chapterId = chapterId,
                 subjectId = subjectId,
                 batchId = batchId,
-                title = title.ifBlank { "Untitled Note" },
+                title = title.trim(),
                 contentMarkdown = contentMarkdown,
                 tagsJson = JSONArray(tags).toString(),
                 isFavorite = isFavorite,
@@ -275,16 +297,17 @@ class StudyViewModel(
     }
 
     // -------------------------------------------------------------
-    // Formulas CRUD
+    // Formula Vault
     // -------------------------------------------------------------
     fun saveFormula(
-        id: Long = 0,
+        id: Long = 0L,
         chapterId: Long,
         subjectId: Long,
         batchId: Long,
         title: String,
         formulaLatex: String,
-        explanation: String = ""
+        explanation: String = "",
+        tags: List<String> = emptyList()
     ) {
         viewModelScope.launch {
             val formula = FormulaEntity(
@@ -294,11 +317,12 @@ class StudyViewModel(
                 batchId = batchId,
                 title = title.trim(),
                 formulaLatex = formulaLatex.trim(),
-                explanation = explanation.trim()
+                explanation = explanation.trim(),
+                tagsJson = JSONArray(tags).toString()
             )
             if (id == 0L) {
                 repository.insertFormula(formula)
-                showMessage("Formula added to Vault")
+                showMessage("Formula added to vault")
             } else {
                 repository.updateFormula(formula)
                 showMessage("Formula updated")
@@ -309,15 +333,15 @@ class StudyViewModel(
     fun deleteFormula(formula: FormulaEntity) {
         viewModelScope.launch {
             repository.deleteFormula(formula)
-            showMessage("Formula deleted")
+            showMessage("Formula removed")
         }
     }
 
     // -------------------------------------------------------------
-    // Questions CRUD
+    // Question Bank
     // -------------------------------------------------------------
     fun saveQuestion(
-        id: Long = 0,
+        id: Long = 0L,
         chapterId: Long,
         subjectId: Long,
         batchId: Long,
@@ -353,7 +377,7 @@ class StudyViewModel(
             )
             if (id == 0L) {
                 repository.insertQuestion(q)
-                showMessage("Question added to Question Bank")
+                showMessage("Question added to bank")
             } else {
                 repository.updateQuestion(q)
                 showMessage("Question updated")
@@ -369,223 +393,25 @@ class StudyViewModel(
     }
 
     // -------------------------------------------------------------
-    // Manual & Smart Test Creation
+    // Flashcards & Spaced Repetition
     // -------------------------------------------------------------
-    fun createManualTest(
-        title: String,
-        batchId: Long?,
-        subjectId: Long?,
-        chapterId: Long?,
-        mode: TestMode,
-        durationMinutes: Int,
-        negativeMarks: Double,
-        questionIds: List<Long>
+    fun createFlashcard(
+        chapterId: Long,
+        subjectId: Long,
+        front: String,
+        back: String,
+        difficulty: Difficulty = Difficulty.MEDIUM
     ) {
         viewModelScope.launch {
-            val questions = repository.getQuestionsByIds(questionIds)
-            val totalMarks = questions.sumOf { it.marks }
-            val test = TestEntity(
-                batchId = batchId,
-                subjectId = subjectId,
+            val card = FlashcardEntity(
                 chapterId = chapterId,
-                title = title.trim(),
-                mode = mode,
-                durationMinutes = durationMinutes,
-                totalMarks = totalMarks,
-                negativeMarksPerWrong = negativeMarks,
-                questionIdsJson = JSONArray(questionIds).toString()
-            )
-            repository.insertTest(test)
-            showMessage("Test created with ${questionIds.size} questions")
-        }
-    }
-
-    fun createSmartTest(
-        title: String,
-        batchId: Long?,
-        subjectId: Long?,
-        chapterId: Long?,
-        targetCount: Int,
-        durationMinutes: Int,
-        distribution: SmartTestDistribution
-    ) {
-        viewModelScope.launch {
-            val allQ = if (chapterId != null && chapterId > 0) {
-                questions.value.filter { it.chapterId == chapterId }
-            } else if (subjectId != null && subjectId > 0) {
-                questions.value.filter { it.subjectId == subjectId }
-            } else {
-                questions.value
-            }
-
-            val mistakesList = allMistakes.value
-            val selected = SmartTestGenerator.selectQuestions(
-                allQuestions = allQ,
-                allMistakes = mistakesList,
-                targetQuestionCount = targetCount,
-                distribution = distribution
-            )
-
-            if (selected.isEmpty()) {
-                showMessage("Not enough questions to generate Smart Test")
-                return@launch
-            }
-
-            val selectedIds = selected.map { it.id }
-            val test = TestEntity(
-                batchId = batchId,
                 subjectId = subjectId,
-                chapterId = chapterId,
-                title = title.trim(),
-                mode = TestMode.ADAPTIVE,
-                durationMinutes = durationMinutes,
-                totalMarks = selected.sumOf { it.marks },
-                negativeMarksPerWrong = 0.25,
-                questionIdsJson = JSONArray(selectedIds).toString()
+                front = front.trim(),
+                back = back.trim(),
+                difficulty = difficulty
             )
-            repository.insertTest(test)
-            showMessage("Smart Test generated with ${selected.size} adaptive questions!")
-        }
-    }
-
-    // -------------------------------------------------------------
-    // Test Taking Engine
-    // -------------------------------------------------------------
-    fun startTest(testId: Long, onReady: () -> Unit) {
-        viewModelScope.launch {
-            val test = repository.getTestById(testId) ?: return@launch
-            val ids = try {
-                val arr = JSONArray(test.questionIdsJson)
-                (0 until arr.length()).map { arr.optLong(it) }
-            } catch (e: Exception) {
-                emptyList()
-            }
-
-            val qList = repository.getQuestionsByIds(ids)
-            if (qList.isEmpty()) {
-                showMessage("This test has no questions.")
-                return@launch
-            }
-
-            _activeTest.value = test
-            _activeQuestions.value = if (test.isRandomized) qList.shuffled() else qList
-            _currentQuestionIndex.value = 0
-            _userAnswers.value = emptyMap()
-            _markedForReview.value = emptySet()
-            _timeRemainingSeconds.value = test.durationMinutes * 60
-            _questionTimeSpent.value = emptyMap()
-
-            activeAttemptId = repository.startTestAttempt(test.id, test.title, qList.size)
-
-            // Start countdown timer
-            timerJob?.cancel()
-            timerJob = viewModelScope.launch {
-                while (_timeRemainingSeconds.value > 0) {
-                    delay(1000)
-                    _timeRemainingSeconds.value -= 1
-
-                    // Track time spent on current question
-                    val currentQ = _activeQuestions.value.getOrNull(_currentQuestionIndex.value)
-                    if (currentQ != null) {
-                        val currentSpent = _questionTimeSpent.value[currentQ.id] ?: 0
-                        _questionTimeSpent.value = _questionTimeSpent.value + (currentQ.id to (currentSpent + 1))
-                    }
-                }
-                // Time up! Auto-submit
-                submitActiveTest {}
-            }
-
-            onReady()
-        }
-    }
-
-    fun selectAnswer(questionId: Long, answer: String, isMultiple: Boolean = false) {
-        val current = _userAnswers.value[questionId] ?: emptyList()
-        val updated = if (isMultiple) {
-            if (current.contains(answer)) current - answer else current + answer
-        } else {
-            listOf(answer)
-        }
-        _userAnswers.value = _userAnswers.value + (questionId to updated)
-
-        // Autosave draft in background to prevent lost progress
-        viewModelScope.launch {
-            val json = JSONObject()
-            _userAnswers.value.forEach { (qid, ans) ->
-                json.put(qid.toString(), JSONArray(ans))
-            }
-            repository.updateAttemptDraft(activeAttemptId, json.toString())
-        }
-    }
-
-    fun clearAnswer(questionId: Long) {
-        _userAnswers.value = _userAnswers.value - questionId
-    }
-
-    fun toggleMarkForReview(questionId: Long) {
-        val current = _markedForReview.value
-        _markedForReview.value = if (current.contains(questionId)) current - questionId else current + questionId
-    }
-
-    fun goToQuestion(index: Int) {
-        if (index in 0 until _activeQuestions.value.size) {
-            _currentQuestionIndex.value = index
-        }
-    }
-
-    fun submitActiveTest(onSubmitted: (Long) -> Unit) {
-        timerJob?.cancel()
-        val test = _activeTest.value ?: return
-        val questions = _activeQuestions.value
-        val attemptId = activeAttemptId
-
-        viewModelScope.launch {
-            val summary = repository.submitTest(
-                attemptId = attemptId,
-                test = test,
-                questions = questions,
-                userAnswers = _userAnswers.value,
-                questionTimeSpent = _questionTimeSpent.value
-            )
-            _lastSubmissionSummary.value = summary
-            _activeTest.value = null
-            _activeQuestions.value = emptyList()
-            onSubmitted(attemptId)
-        }
-    }
-
-    // -------------------------------------------------------------
-    // Mistake Book & Revision Actions
-    // -------------------------------------------------------------
-    fun resolveMistake(mistakeId: Long, note: String) {
-        viewModelScope.launch {
-            repository.resolveMistake(mistakeId, note)
-            showMessage("Mistake marked as resolved! Keep up the great work.")
-        }
-    }
-
-    fun completeRevisionItem(item: RevisionItemEntity, qualityRating: Int) {
-        viewModelScope.launch {
-            repository.completeRevisionItem(item, qualityRating)
-            showMessage("Revision recorded! Next interval scheduled.")
-        }
-    }
-
-    // -------------------------------------------------------------
-    // Flashcard Actions
-    // -------------------------------------------------------------
-    fun createFlashcard(chapterId: Long, subjectId: Long, front: String, back: String, difficulty: Difficulty) {
-        viewModelScope.launch {
-            repository.insertFlashcard(
-                FlashcardEntity(
-                    chapterId = chapterId,
-                    subjectId = subjectId,
-                    front = front.trim(),
-                    back = back.trim(),
-                    difficulty = difficulty
-                )
-            )
-            showMessage("Flashcard added")
+            repository.insertFlashcard(card)
+            showMessage("Flashcard created")
         }
     }
 
@@ -595,22 +421,54 @@ class StudyViewModel(
         }
     }
 
+    fun deleteFlashcard(card: FlashcardEntity) {
+        viewModelScope.launch {
+            repository.deleteFlashcard(card)
+            showMessage("Flashcard deleted")
+        }
+    }
+
+    fun completeRevisionItem(item: RevisionItemEntity, qualityRating: Int = 3) {
+        viewModelScope.launch {
+            repository.completeRevisionItem(item, qualityRating)
+            showMessage("Revision item reviewed!")
+        }
+    }
+
     // -------------------------------------------------------------
-    // Timetable & Journal Actions
+    // Mistake Book
+    // -------------------------------------------------------------
+    fun resolveMistake(mistakeId: Long, note: String = "") {
+        viewModelScope.launch {
+            repository.resolveMistake(mistakeId, note)
+            showMessage("Mistake marked as resolved! Great job.")
+        }
+    }
+
+    fun resolveMistake(mistake: MistakeEntity, note: String = "") {
+        resolveMistake(mistake.id, note)
+    }
+
+    // -------------------------------------------------------------
+    // Timetable & Planner
     // -------------------------------------------------------------
     fun addTimetableEntry(
+        subjectId: Long? = null,
         subjectName: String,
-        chapterTask: String,
+        chapterTask: String = "",
+        chapterOrTask: String = chapterTask,
         dayOfWeek: Int,
         startTime: String,
         endTime: String,
-        reminderEnabled: Boolean = false,
+        reminderEnabled: Boolean,
         context: Context? = null
     ) {
         viewModelScope.launch {
+            val effectiveTask = if (chapterTask.isNotBlank()) chapterTask else chapterOrTask
             val entry = TimetableEntity(
+                subjectId = subjectId,
                 subjectName = subjectName.trim(),
-                chapterOrTask = chapterTask.trim(),
+                chapterOrTask = effectiveTask.trim(),
                 dayOfWeek = dayOfWeek,
                 startTime = startTime.trim(),
                 endTime = endTime.trim(),
@@ -619,30 +477,28 @@ class StudyViewModel(
             val id = repository.insertTimetableEntry(entry)
             if (reminderEnabled && context != null) {
                 StudyAlarmScheduler.scheduleAlarm(context, entry.copy(id = id))
-                showMessage("⏰ Schedule slot & Alarm added for ${entry.subjectName}!")
-            } else {
-                showMessage("Timetable entry added")
             }
+            showMessage("Timetable slot added")
         }
     }
 
-    fun toggleTimetableAlarm(slot: TimetableEntity, enabled: Boolean, context: Context) {
+    fun toggleTimetableAlarm(entry: TimetableEntity, enabled: Boolean, context: Context? = null) {
         viewModelScope.launch {
-            val updated = slot.copy(reminderEnabled = enabled)
+            val updated = entry.copy(reminderEnabled = enabled)
             repository.updateTimetableEntry(updated)
-            if (enabled) {
-                StudyAlarmScheduler.scheduleAlarm(context, updated)
-                showMessage("⏰ Alarm set for ${slot.subjectName} (${slot.startTime})")
-            } else {
-                StudyAlarmScheduler.cancelAlarm(context, slot.id)
-                showMessage("Alarm turned off for ${slot.subjectName}")
+            if (context != null) {
+                if (enabled) {
+                    StudyAlarmScheduler.scheduleAlarm(context, updated)
+                } else {
+                    StudyAlarmScheduler.cancelAlarm(context, updated.id)
+                }
             }
         }
     }
 
     fun deleteTimetableEntry(entry: TimetableEntity, context: Context? = null) {
         viewModelScope.launch {
-            if (entry.reminderEnabled && context != null) {
+            if (context != null && entry.reminderEnabled) {
                 StudyAlarmScheduler.cancelAlarm(context, entry.id)
             }
             repository.deleteTimetableEntry(entry)
@@ -653,41 +509,227 @@ class StudyViewModel(
     fun saveJournal(journal: JournalEntity) {
         viewModelScope.launch {
             repository.insertJournalEntry(journal)
-            showMessage("Study journal saved")
+            showMessage("Daily reflection saved")
         }
     }
 
-    fun logStudySession(minutes: Int, questionsSolved: Int, notes: String, chapterId: Long? = null) {
-        viewModelScope.launch {
-            db.studySessionDao().insertSession(
-                StudySessionEntity(
-                    chapterId = chapterId,
-                    durationMinutes = minutes,
-                    questionsSolved = questionsSolved,
-                    notes = notes
-                )
+    fun saveJournal(
+        dateMillis: Long,
+        freeText: String,
+        mood: Mood = Mood.GOOD,
+        accomplishments: String = "",
+        difficulties: String = "",
+        tomorrowPlan: String = "",
+        studyTimeMinutes: Int = 0,
+        questionsSolved: Int = 0
+    ) {
+        saveJournal(
+            JournalEntity(
+                dateMillis = dateMillis,
+                freeText = freeText.trim(),
+                mood = mood,
+                accomplishments = accomplishments.trim(),
+                difficulties = difficulties.trim(),
+                tomorrowPlan = tomorrowPlan.trim(),
+                studyTimeMinutes = studyTimeMinutes,
+                questionsSolved = questionsSolved
             )
-            showMessage("Study session logged")
+        )
+    }
+
+    // -------------------------------------------------------------
+    // Test Generation & Management
+    // -------------------------------------------------------------
+    fun createManualTest(
+        title: String,
+        batchId: Long?,
+        subjectId: Long?,
+        chapterId: Long?,
+        mode: TestMode,
+        durationMinutes: Int,
+        negativeMarks: Double = 0.0,
+        questionIds: List<Long>,
+        onCreated: (Long) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val test = TestEntity(
+                title = title.trim().ifBlank { "Practice Test" },
+                batchId = batchId,
+                subjectId = subjectId,
+                chapterId = chapterId,
+                mode = mode,
+                durationMinutes = durationMinutes,
+                negativeMarksPerWrong = negativeMarks,
+                questionIdsJson = JSONArray(questionIds).toString()
+            )
+            val id = repository.insertTest(test)
+            showMessage("Test created!")
+            onCreated(id)
+        }
+    }
+
+    fun createSmartTest(
+        title: String,
+        batchId: Long?,
+        subjectId: Long?,
+        chapterId: Long?,
+        targetCount: Int = 10,
+        durationMinutes: Int = 30,
+        distribution: SmartTestDistribution = SmartTestDistribution(),
+        onCreated: (Long) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val allQ = questions.value.filter { q ->
+                (chapterId == null || q.chapterId == chapterId) &&
+                (subjectId == null || q.subjectId == subjectId)
+            }
+            val pool = if (allQ.isNotEmpty()) allQ else questions.value
+            val allM = mistakes.value
+            val selected = SmartTestGenerator.selectQuestions(
+                allQuestions = pool,
+                allMistakes = allM,
+                targetQuestionCount = targetCount,
+                distribution = distribution
+            )
+            val questionIds = selected.map { it.id }
+            val test = TestEntity(
+                title = title.trim().ifBlank { "Adaptive Smart Test" },
+                batchId = batchId,
+                subjectId = subjectId,
+                chapterId = chapterId,
+                mode = TestMode.PRACTICE,
+                durationMinutes = durationMinutes,
+                questionIdsJson = JSONArray(questionIds).toString()
+            )
+            val id = repository.insertTest(test)
+            showMessage("Smart test generated with ${questionIds.size} questions!")
+            onCreated(id)
         }
     }
 
     // -------------------------------------------------------------
-    // JSON Test Import / Export
+    // Test Player Execution Engine
+    // -------------------------------------------------------------
+    fun startTest(testId: Long, onReady: () -> Unit = {}) {
+        viewModelScope.launch {
+            val test = repository.getTestById(testId) ?: return@launch
+            val ids = try {
+                val arr = JSONArray(test.questionIdsJson)
+                (0 until arr.length()).map { arr.getLong(it) }
+            } catch (e: Exception) {
+                emptyList()
+            }
+            val qList = repository.getQuestionsByIds(ids)
+            _activeTest.value = test
+            _activeQuestions.value = qList
+            _currentQuestionIndex.value = 0
+            _userAnswers.value = emptyMap()
+            _markedForReview.value = emptySet()
+            _timeRemainingSeconds.value = test.durationMinutes * 60
+            questionTimeSpent.clear()
+
+            activeAttemptId = repository.startTestAttempt(test.id, test.title, qList.size)
+
+            testTimerJob?.cancel()
+            testTimerJob = viewModelScope.launch {
+                while (_timeRemainingSeconds.value > 0) {
+                    delay(1000)
+                    _timeRemainingSeconds.value -= 1
+                    val currentQ = _activeQuestions.value.getOrNull(_currentQuestionIndex.value)
+                    if (currentQ != null) {
+                        questionTimeSpent[currentQ.id] = (questionTimeSpent[currentQ.id] ?: 0) + 1
+                    }
+                }
+            }
+
+            onReady()
+        }
+    }
+
+    fun goToQuestion(index: Int) {
+        if (index in _activeQuestions.value.indices) {
+            _currentQuestionIndex.value = index
+        }
+    }
+
+    fun selectAnswer(questionId: Long, answer: String, isMultiple: Boolean = false) {
+        val current = _userAnswers.value.toMutableMap()
+        if (!isMultiple) {
+            current[questionId] = listOf(answer)
+        } else {
+            val existing = current[questionId]?.toMutableList() ?: mutableListOf()
+            if (existing.contains(answer)) {
+                existing.remove(answer)
+            } else {
+                existing.add(answer)
+            }
+            current[questionId] = existing
+        }
+        _userAnswers.value = current
+
+        // Save progress draft
+        viewModelScope.launch {
+            val draft = org.json.JSONObject()
+            current.forEach { (qid, ans) ->
+                draft.put(qid.toString(), JSONArray(ans))
+            }
+            repository.updateAttemptDraft(activeAttemptId, draft.toString())
+        }
+    }
+
+    fun clearAnswer(questionId: Long) {
+        val current = _userAnswers.value.toMutableMap()
+        current.remove(questionId)
+        _userAnswers.value = current
+    }
+
+    fun toggleMarkForReview(questionId: Long) {
+        val current = _markedForReview.value.toMutableSet()
+        if (current.contains(questionId)) {
+            current.remove(questionId)
+        } else {
+            current.add(questionId)
+        }
+        _markedForReview.value = current
+    }
+
+    fun submitActiveTest(onCompleted: (Long) -> Unit) {
+        testTimerJob?.cancel()
+        val test = _activeTest.value ?: return
+        val questions = _activeQuestions.value
+        val answers = _userAnswers.value
+        val attemptId = activeAttemptId
+
+        viewModelScope.launch {
+            repository.submitTest(
+                attemptId = attemptId,
+                test = test,
+                questions = questions,
+                userAnswers = answers,
+                questionTimeSpent = questionTimeSpent
+            )
+            onCompleted(attemptId)
+        }
+    }
+
+    // -------------------------------------------------------------
+    // JSON Import & Backup
     // -------------------------------------------------------------
     fun validateJson(jsonString: String): TestValidationResult {
-        return TestJsonParser.parseAndValidate(jsonString)
+        val result = TestJsonParser.parseAndValidate(jsonString)
+        _importValidationResult.value = result
+        return result
     }
 
     fun importValidatedTest(
-        testDto: com.studyforge.app.domain.model.TestImportDto,
-        importMode: Int, // 1 = as Test, 2 = Question Bank only, 3 = assign to chapter
+        testDto: TestImportDto,
+        importMode: Int,
         targetBatchId: Long,
         targetSubjectId: Long,
         targetChapterId: Long
     ) {
         viewModelScope.launch {
-            // Save questions into database
-            val questionEntities = testDto.questions.map { q ->
+            val entities = testDto.questions.map { q ->
                 QuestionEntity(
                     chapterId = targetChapterId,
                     subjectId = targetSubjectId,
@@ -703,57 +745,86 @@ class StudyViewModel(
                     difficulty = q.difficulty,
                     topic = q.topic,
                     hint = q.hint,
-                    source = q.source
+                    imageUrl = q.imageUrl,
+                    timeLimitSeconds = q.timeLimitSeconds
                 )
             }
-            val insertedIds = repository.insertQuestions(questionEntities)
-
-            if (importMode == 1 || importMode == 3) {
-                // Also create a test entity
+            val insertedIds = repository.insertQuestions(entities)
+            if (importMode == 1) { // As Test
                 val test = TestEntity(
+                    title = testDto.title.ifBlank { "Imported Test" },
                     batchId = targetBatchId,
                     subjectId = targetSubjectId,
                     chapterId = targetChapterId,
-                    title = testDto.title.ifBlank { "Imported Test" },
-                    mode = TestMode.PRACTICE,
                     durationMinutes = testDto.durationMinutes,
-                    totalMarks = testDto.totalMarks,
-                    negativeMarksPerWrong = 0.25,
                     questionIdsJson = JSONArray(insertedIds).toString()
                 )
                 repository.insertTest(test)
-                showMessage("Imported ${insertedIds.size} questions as test: ${test.title}")
+                showMessage("Imported ${insertedIds.size} questions as Test: ${test.title}")
             } else {
-                showMessage("Imported ${insertedIds.size} questions into Question Bank")
+                showMessage("Imported ${insertedIds.size} questions into Question Bank!")
             }
         }
     }
 
-    // -------------------------------------------------------------
-    // Full Backup & Restore
-    // -------------------------------------------------------------
     suspend fun exportFullBackup(): String {
         return BackupManager.createFullBackupJson(db)
     }
 
-    suspend fun restoreFullBackup(jsonString: String): Result<String> {
-        val result = BackupManager.restoreFromBackupJson(db, jsonString)
-        if (result.isSuccess) {
-            showMessage("Database successfully restored!")
-        }
-        return result
+    suspend fun restoreFullBackup(json: String): Result<Unit> {
+        return BackupManager.restoreFromBackupJson(db, json).map { }
     }
 
     // -------------------------------------------------------------
-    // AI Study Assistant Actions
+    // Curriculum (Batch & Subjects) JSON Import
     // -------------------------------------------------------------
-    fun askAiToExplain(concept: String, contextText: String) {
+    fun validateCurriculumJson(jsonString: String): CurriculumValidationResult {
+        return CurriculumJsonParser.parseAndValidate(jsonString)
+    }
+
+    fun importCurriculum(
+        curriculum: CurriculumValidationResult,
+        targetBatchId: Long? = null,
+        onCompleted: (batchId: Long) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            if (!curriculum.isValid) {
+                showMessage("Cannot import: JSON format is invalid.")
+                return@launch
+            }
+            try {
+                val summary = repository.importCurriculum(curriculum, targetBatchId)
+                val msg = buildString {
+                    append("Successfully imported into '${summary.batchName}': ")
+                    append("${summary.subjectsCount} subjects, ${summary.chaptersCount} chapters")
+                    if (summary.notesCount > 0) append(", ${summary.notesCount} notes")
+                    if (summary.formulasCount > 0) append(", ${summary.formulasCount} formulas")
+                    if (summary.questionsCount > 0) append(", ${summary.questionsCount} questions")
+                    append("!")
+                }
+                showMessage(msg)
+                onCompleted(summary.batchId)
+            } catch (e: Exception) {
+                showMessage("Failed to import curriculum: ${e.message}")
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Gemini AI Assistant Integration
+    // -------------------------------------------------------------
+    fun resetAiState() {
+        _aiResponseState.value = AiResponse.Idle
+        _generatedQuestionsState.value = AiResponse.Idle
+    }
+
+    fun askAiToExplain(concept: String, context: String) {
         viewModelScope.launch {
             _aiResponseState.value = AiResponse.Loading
-            val res = aiAssistant.explainConcept(concept, contextText)
-            res.fold(
-                onSuccess = { _aiResponseState.value = AiResponse.Success(it) },
-                onFailure = { _aiResponseState.value = AiResponse.Error(it.message ?: "AI request failed") }
+            val res = aiAssistant.explainConcept(concept, context)
+            _aiResponseState.value = res.fold(
+                onSuccess = { AiResponse.Success(it) },
+                onFailure = { AiResponse.Error(it.message ?: "Failed to generate explanation.") }
             )
         }
     }
@@ -762,9 +833,9 @@ class StudyViewModel(
         viewModelScope.launch {
             _aiResponseState.value = AiResponse.Loading
             val res = aiAssistant.simplifyNote(noteTitle, noteContent)
-            res.fold(
-                onSuccess = { _aiResponseState.value = AiResponse.Success(it) },
-                onFailure = { _aiResponseState.value = AiResponse.Error(it.message ?: "AI request failed") }
+            _aiResponseState.value = res.fold(
+                onSuccess = { AiResponse.Success(it) },
+                onFailure = { AiResponse.Error(it.message ?: "Failed to simplify note.") }
             )
         }
     }
@@ -773,27 +844,249 @@ class StudyViewModel(
         viewModelScope.launch {
             _generatedQuestionsState.value = AiResponse.Loading
             val res = aiAssistant.generateQuestionsFromNote(noteTitle, noteContent, count)
-            res.fold(
-                onSuccess = { _generatedQuestionsState.value = AiResponse.Success(it) },
-                onFailure = { _generatedQuestionsState.value = AiResponse.Error(it.message ?: "AI request failed") }
+            _generatedQuestionsState.value = res.fold(
+                onSuccess = { AiResponse.Success(it) },
+                onFailure = { AiResponse.Error(it.message ?: "Failed to generate questions.") }
             )
         }
     }
 
-    fun resetAiState() {
-        _aiResponseState.value = AiResponse.Idle
-        _generatedQuestionsState.value = AiResponse.Idle
-    }
-
-    // Settings
-    fun setThemeMode(mode: String) {
-        viewModelScope.launch { preferencesRepository.setThemeMode(mode) }
-    }
-
-    fun setGeminiApiKeyOverride(key: String) {
+    fun saveAiGeneratedSummaryAsNote(
+        chapterId: Long,
+        batchId: Long,
+        subjectId: Long,
+        title: String,
+        content: String = "",
+        contentMarkdown: String = content
+    ) {
         viewModelScope.launch {
-            preferencesRepository.setGeminiApiKeyOverride(key)
-            showMessage("API Key saved securely")
+            val noteContent = if (contentMarkdown.isNotBlank()) contentMarkdown else content
+            val note = NoteEntity(
+                chapterId = chapterId,
+                subjectId = subjectId,
+                batchId = batchId,
+                title = title.trim(),
+                contentMarkdown = noteContent,
+                tagsJson = "[\"AI_Generated\"]",
+                createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
+            )
+            repository.insertNote(note)
+            showMessage("AI Summary saved as note: $title")
+        }
+    }
+
+    fun saveAiGeneratedQuestionsToChapter(
+        chapterId: Long,
+        batchId: Long,
+        subjectId: Long,
+        questions: List<QuestionDto> = emptyList(),
+        questionsList: List<QuestionDto> = questions
+    ) {
+        viewModelScope.launch {
+            val list = if (questionsList.isNotEmpty()) questionsList else questions
+            val entities = list.map { q ->
+                QuestionEntity(
+                    chapterId = chapterId,
+                    subjectId = subjectId,
+                    batchId = batchId,
+                    type = q.type,
+                    questionText = q.question,
+                    optionsJson = JSONArray(q.options).toString(),
+                    correctAnswersJson = JSONArray(q.correctAnswers).toString(),
+                    explanation = q.explanation,
+                    detailedSolution = q.detailedSolution,
+                    marks = q.marks,
+                    negativeMarks = q.negativeMarks,
+                    difficulty = q.difficulty,
+                    topic = q.topic,
+                    hint = q.hint,
+                    tagsJson = "[\"AI_Generated\"]"
+                )
+            }
+            val insertedIds = repository.insertQuestions(entities)
+            showMessage("Saved ${insertedIds.size} AI questions to Question Bank!")
+        }
+    }
+
+    // -------------------------------------------------------------
+    // AI Smart Performance Analysis & Adaptive Test Crafter
+    // -------------------------------------------------------------
+    fun askAiForOverallPerformanceAnalysis() {
+        viewModelScope.launch {
+            _aiResponseState.value = AiResponse.Loading
+            val stats = analytics.value
+            val unresMistakes = unresolvedMistakes.value
+            val completedAttemptsList = attempts.value
+
+            val perfSummary = buildString {
+                appendLine("Overall Study Time: ${stats.totalStudyTimeMinutes} minutes")
+                appendLine("Total Questions Solved: ${stats.totalQuestionsSolved}")
+                appendLine("Total Tests Completed: ${stats.totalTestsCompleted}")
+                appendLine("Overall Average Score: ${String.format("%.1f", stats.overallAverageScore)}%")
+                appendLine("Overall Accuracy: ${String.format("%.1f", stats.overallAccuracy)}%")
+                appendLine("Current Learning Streak: ${stats.currentStreakDays} days")
+                appendLine("Total Mistakes Logged: ${stats.totalMistakesRecorded} (Unresolved: ${unresMistakes.size})")
+
+                if (stats.weakChapters.isNotEmpty()) {
+                    appendLine("\nWeakest Chapters Needing Intervention:")
+                    stats.weakChapters.take(5).forEach { c ->
+                        appendLine("- ${c.chapterName} (${c.subjectName}): Mastery ${c.masteryScore}%, Mistakes: ${c.mistakeCount}")
+                    }
+                }
+
+                if (stats.strongChapters.isNotEmpty()) {
+                    appendLine("\nTop Strong Chapters:")
+                    stats.strongChapters.take(3).forEach { c ->
+                        appendLine("- ${c.chapterName} (${c.subjectName}): Mastery ${c.masteryScore}%")
+                    }
+                }
+
+                if (completedAttemptsList.isNotEmpty()) {
+                    appendLine("\nRecent Test Attempts History:")
+                    completedAttemptsList.takeLast(4).forEach { a ->
+                        appendLine("- Test '${a.testTitle}': Score ${a.totalScore}/${a.maxScore}, Accuracy ${String.format("%.1f", a.accuracyPercentage)}%, Wrong: ${a.wrongCount}")
+                    }
+                }
+            }
+
+            val res = aiAssistant.analyzeOverallPerformance(perfSummary)
+            _aiResponseState.value = res.fold(
+                onSuccess = { AiResponse.Success(it) },
+                onFailure = { AiResponse.Error(it.message ?: "Failed to generate performance analysis.") }
+            )
+        }
+    }
+
+    fun craftAndSaveAiAdaptiveTest(questionCount: Int = 5, onCreated: (Long) -> Unit = {}) {
+        viewModelScope.launch {
+            _aiResponseState.value = AiResponse.Loading
+            val stats = analytics.value
+            val unresMistakes = unresolvedMistakes.value
+            val allQ = questions.value
+
+            val weakContext = buildString {
+                appendLine("Student Stats: Accuracy ${String.format("%.1f", stats.overallAccuracy)}%, Tests Completed: ${stats.totalTestsCompleted}")
+                if (stats.weakChapters.isNotEmpty()) {
+                    appendLine("Target Weak Chapters: " + stats.weakChapters.take(3).joinToString { it.chapterName })
+                }
+                if (unresMistakes.isNotEmpty()) {
+                    appendLine("Mistake Questions to reinforce count: ${unresMistakes.size}")
+                }
+            }
+
+            val aiQuestionsRes = aiAssistant.craftAdaptiveTest(weakContext, questionCount)
+            val generatedList = aiQuestionsRes.getOrNull() ?: emptyList()
+
+            // If AI generated questions, save them to the DB and create an adaptive test!
+            val targetChapter = stats.weakChapters.firstOrNull()?.let { wc ->
+                chapters.value.find { it.id == wc.chapterId }
+            } ?: chapters.value.firstOrNull()
+
+            val chapterId = targetChapter?.id ?: 1L
+            val subjectId = targetChapter?.subjectId ?: 1L
+            val batchId = targetChapter?.batchId ?: 1L
+
+            val questionsToUse = if (generatedList.isNotEmpty()) {
+                val entities = generatedList.map { qDto ->
+                    QuestionEntity(
+                        chapterId = chapterId,
+                        subjectId = subjectId,
+                        batchId = batchId,
+                        type = qDto.type,
+                        questionText = qDto.question,
+                        optionsJson = JSONArray(qDto.options).toString(),
+                        correctAnswersJson = JSONArray(qDto.correctAnswers).toString(),
+                        explanation = qDto.explanation,
+                        detailedSolution = qDto.detailedSolution,
+                        marks = qDto.marks,
+                        negativeMarks = qDto.negativeMarks,
+                        difficulty = qDto.difficulty,
+                        topic = qDto.topic,
+                        hint = qDto.hint,
+                        tagsJson = "[\"AI_Adaptive\"]"
+                    )
+                }
+                val insertedIds = repository.insertQuestions(entities)
+                insertedIds
+            } else {
+                // Fallback to smart question selection from existing questions
+                val selected = SmartTestGenerator.selectQuestions(
+                    allQuestions = allQ,
+                    allMistakes = allMistakes.value,
+                    targetQuestionCount = questionCount
+                )
+                selected.map { it.id }
+            }
+
+            if (questionsToUse.isEmpty()) {
+                _aiResponseState.value = AiResponse.Error("No questions available to craft test. Please create or import questions first.")
+                return@launch
+            }
+
+            val test = TestEntity(
+                title = "AI Adaptive Test: Smart Performance Challenge",
+                batchId = batchId,
+                subjectId = subjectId,
+                chapterId = chapterId,
+                mode = TestMode.PRACTICE,
+                durationMinutes = (questionsToUse.size * 2).coerceAtLeast(10),
+                questionIdsJson = JSONArray(questionsToUse).toString()
+            )
+            val newTestId = repository.insertTest(test)
+            _aiResponseState.value = AiResponse.Success(
+                "### ✅ AI Adaptive Test Created Successfully!\n\n" +
+                "**Title:** ${test.title}\n\n" +
+                "**Questions Crafted:** ${questionsToUse.size}\n\n" +
+                "**Duration:** ${test.durationMinutes} minutes\n\n" +
+                "This adaptive test was tailored specifically to test your weak points and reinforce mistake patterns. You can start it right now!"
+            )
+            showMessage("AI Adaptive Test ready with ${questionsToUse.size} questions!")
+            onCreated(newTestId)
+        }
+    }
+
+    fun askAiToEvaluateTestAttempt(attemptId: Long) {
+        viewModelScope.launch {
+            _aiResponseState.value = AiResponse.Loading
+            val attempt = repository.getAttemptById(attemptId)
+            if (attempt == null) {
+                _aiResponseState.value = AiResponse.Error("Attempt not found.")
+                return@launch
+            }
+            val test = repository.getTestById(attempt.testId)
+            val answers = repository.getAnswersForAttempt(attemptId)
+            val questionIds = answers.map { it.questionId }
+            val questionMap = repository.getQuestionsByIds(questionIds).associateBy { it.id }
+
+            val scoreSummary = buildString {
+                appendLine("Total Score: ${attempt.totalScore} / ${attempt.maxScore}")
+                appendLine("Accuracy: ${String.format("%.1f", attempt.accuracyPercentage)}%")
+                appendLine("Total Questions: ${attempt.totalQuestions}")
+                appendLine("Answered: ${attempt.answeredCount}, Correct: ${attempt.correctCount}, Wrong: ${attempt.wrongCount}, Skipped: ${attempt.skippedCount}")
+                appendLine("Time Spent: ${attempt.timeSpentSeconds / 60}m ${attempt.timeSpentSeconds % 60}s")
+            }
+
+            val questionsDetail = buildString {
+                answers.forEachIndexed { idx, ans ->
+                    val q = questionMap[ans.questionId]
+                    appendLine("Question ${idx + 1}: ${q?.questionText?.take(60) ?: "Question"}...")
+                    appendLine("  Result: ${if (ans.isCorrect) "CORRECT" else if (ans.isSkipped) "SKIPPED" else "WRONG"}")
+                    appendLine("  User Answer: ${ans.userSelectedJson}")
+                    appendLine("  Correct Answer: ${q?.correctAnswersJson}")
+                    appendLine("  Time Spent: ${ans.timeSpentSeconds}s")
+                }
+            }
+
+            val res = aiAssistant.evaluateTestPerformance(
+                testTitle = test?.title ?: attempt.testTitle,
+                scoreSummary = scoreSummary,
+                questionsDetail = questionsDetail
+            )
+            _aiResponseState.value = res.fold(
+                onSuccess = { AiResponse.Success(it) },
+                onFailure = { AiResponse.Error(it.message ?: "Failed to generate test evaluation.") }
+            )
         }
     }
 }

@@ -428,14 +428,14 @@ fun BlockMathCard(
     val context = LocalContext.current
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         modifier = modifier
             .fillMaxWidth()
             .border(
                 1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
-                RoundedCornerShape(16.dp)
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                RoundedCornerShape(18.dp)
             )
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -475,13 +475,13 @@ fun BlockMathCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Authentic KaTeX Textbook Mathematical Typesetting (matching reference image)
             MathFormulaView(
                 latex = rawLatex,
                 displayMode = true,
-                fontSizeSp = 21,
+                fontSizeSp = 22,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth()
             )

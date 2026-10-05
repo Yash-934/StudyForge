@@ -17,9 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -55,6 +57,7 @@ fun SmartTestCreateScreen(
     chapterId: Long,
     viewModel: StudyViewModel,
     onBack: () -> Unit,
+    onNavigateToTestPlayer: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val chapters by viewModel.chapters.collectAsState()
@@ -69,6 +72,7 @@ fun SmartTestCreateScreen(
     var mediumPct by remember { mutableFloatStateOf(30f) }
     var recentPct by remember { mutableFloatStateOf(20f) }
     var incorrectPct by remember { mutableFloatStateOf(10f) }
+    var isAiCrafting by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -244,6 +248,59 @@ fun SmartTestCreateScreen(
                         onValueChange = { incorrectPct = it },
                         valueRange = 0f..100f
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Option: AI Dynamic Adaptive Test Crafting
+            StudyCard(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = PurpleAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "AI Adaptive Test Crafter",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Let Gemini analyze your weak areas, error frequency, and mistake patterns to craft personalized adaptive questions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            isAiCrafting = true
+                            viewModel.craftAndSaveAiAdaptiveTest(questionCount = targetCount) { createdId ->
+                                isAiCrafting = false
+                                onNavigateToTestPlayer(createdId)
+                            }
+                        },
+                        enabled = !isAiCrafting,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isAiCrafting) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Crafting Adaptive Questions...")
+                        } else {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Craft with AI & Start Test")
+                        }
+                    }
                 }
             }
 

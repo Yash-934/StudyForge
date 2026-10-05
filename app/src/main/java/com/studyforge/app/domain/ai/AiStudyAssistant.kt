@@ -1,7 +1,6 @@
 package com.studyforge.app.domain.ai
 
 import com.studyforge.app.domain.model.QuestionDto
-import kotlinx.coroutines.flow.Flow
 
 sealed class AiResponse<out T> {
     object Idle : AiResponse<Nothing>()
@@ -17,4 +16,7 @@ interface AiStudyAssistant {
     suspend fun generateQuestionsFromNote(noteTitle: String, noteContent: String, count: Int = 3): Result<List<QuestionDto>>
     suspend fun analyzeMistakes(mistakesSummary: String): Result<String>
     suspend fun createRevisionPlan(weakAreasSummary: String): Result<String>
+    suspend fun analyzeOverallPerformance(performanceSummary: String): Result<String>
+    suspend fun craftAdaptiveTest(weakAreasContext: String, questionCount: Int = 5): Result<List<QuestionDto>>
+    suspend fun evaluateTestPerformance(testTitle: String, scoreSummary: String, questionsDetail: String): Result<String>
 }

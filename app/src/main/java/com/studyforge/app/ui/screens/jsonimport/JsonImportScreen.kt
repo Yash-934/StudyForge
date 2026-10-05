@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -34,6 +36,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,6 +71,7 @@ import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.SquircleIconBadge
 import com.studyforge.app.ui.components.StudyCard
+import com.studyforge.app.ui.screens.library.ImportCurriculumDialog
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
@@ -90,6 +94,7 @@ fun JsonImportScreen(
     var selectedInputTab by remember { mutableIntStateOf(0) } // 0 = Paste, 1 = File
     var validationResult by remember { mutableStateOf<TestValidationResult?>(null) }
     var importMode by remember { mutableIntStateOf(1) } // 1 = As Test, 2 = Question Bank, 3 = Assign Chapter
+    var showCurriculumDialog by remember { mutableStateOf(false) }
 
     var selectedBatchId by remember { mutableStateOf(batches.firstOrNull()?.id ?: 1L) }
     var selectedSubjectId by remember { mutableStateOf(subjects.firstOrNull()?.id ?: 1L) }
@@ -122,6 +127,16 @@ fun JsonImportScreen(
                     }
                 },
                 actions = {
+                    FilledTonalButton(
+                        onClick = { showCurriculumDialog = true },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Layers, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Batch / Subjects", style = MaterialTheme.typography.labelSmall)
+                    }
                     IconButton(onClick = onNavigateToSchemaHelp) {
                         Icon(imageVector = Icons.Filled.HelpOutline, contentDescription = "JSON Schema Help")
                     }
@@ -137,6 +152,48 @@ fun JsonImportScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SquircleIconBadge(
+                            icon = Icons.Default.Layers,
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            size = 38.dp,
+                            iconSize = 20.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Import Batch & Subjects JSON",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = "Full curriculum with subjects, chapters, notes & formulas",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Button(
+                            onClick = { showCurriculumDialog = true },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("Open", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+
             item {
                 PrimaryTabRow(selectedTabIndex = selectedInputTab) {
                     Tab(
@@ -391,5 +448,16 @@ fun JsonImportScreen(
 
             item { Spacer(modifier = Modifier.height(72.dp)) }
         }
+    }
+
+    if (showCurriculumDialog) {
+        ImportCurriculumDialog(
+            viewModel = viewModel,
+            onDismiss = { showCurriculumDialog = false },
+            onSuccess = { createdBatchId ->
+                showCurriculumDialog = false
+                selectedBatchId = createdBatchId
+            }
+        )
     }
 }

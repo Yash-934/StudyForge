@@ -213,7 +213,8 @@ fun AppNavigation(
                     onNavigateToFormulaVault = { cId -> navController.navigate(Screen.FormulaVault.createRoute(cId, -1L)) },
                     onNavigateToTests = { cId -> navController.navigate(Screen.TestList.createRoute(cId)) },
                     onNavigateToQuestionBank = { cId -> navController.navigate(Screen.QuestionBank.createRoute(cId, -1L)) },
-                    onNavigateToResult = { aId -> navController.navigate(Screen.TestResult.createRoute(aId)) }
+                    onNavigateToResult = { aId -> navController.navigate(Screen.TestResult.createRoute(aId)) },
+                    onNavigateToTestPlayer = { tId -> navController.navigate(Screen.TestPlayer.createRoute(tId)) }
                 )
             }
 
@@ -226,7 +227,10 @@ fun AppNavigation(
             }
 
             composable(Screen.Analytics.route) {
-                AnalyticsScreen(viewModel = viewModel)
+                AnalyticsScreen(
+                    viewModel = viewModel,
+                    onNavigateToTestPlayer = { testId -> navController.navigate(Screen.TestPlayer.createRoute(testId)) }
+                )
             }
 
             // Subject Detail
@@ -379,7 +383,8 @@ fun AppNavigation(
                 SmartTestCreateScreen(
                     chapterId = cId,
                     viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onNavigateToTestPlayer = { tId -> navController.navigate(Screen.TestPlayer.createRoute(tId)) }
                 )
             }
 

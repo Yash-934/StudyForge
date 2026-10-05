@@ -35,9 +35,16 @@ class PreferencesRepository(private val context: Context) {
         prefs[KEY_DEFAULT_NEGATIVE_MARKS] ?: 0.25
     }
 
+    @Volatile
+    private var cachedApiKey: String = ""
+
     val geminiApiKeyOverride: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_GEMINI_API_KEY_OVERRIDE] ?: ""
+        val key = prefs[KEY_GEMINI_API_KEY_OVERRIDE] ?: ""
+        cachedApiKey = key
+        key
     }
+
+    fun getGeminiApiKeyOverrideSync(): String = cachedApiKey
 
     val isOnboardingDone: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_ONBOARDING_DONE] ?: false

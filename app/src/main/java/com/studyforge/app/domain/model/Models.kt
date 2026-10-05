@@ -89,17 +89,17 @@ data class SubjectMasteryInfo(
 )
 
 data class GlobalAnalytics(
-    val totalStudyTimeMinutes: Long,
-    val totalQuestionsSolved: Int,
-    val totalTestsCompleted: Int,
-    val overallAverageScore: Double,
-    val overallAccuracy: Double,
-    val totalMistakesRecorded: Int,
-    val resolvedMistakesCount: Int,
-    val revisionDueTodayCount: Int,
-    val currentStreakDays: Int,
-    val subjectMasteries: List<SubjectMasteryInfo>,
-    val weakChapters: List<ChapterProgressInfo>,
-    val strongChapters: List<ChapterProgressInfo>,
-    val recentScoreTrend: List<Pair<String, Double>> // Date/Title to Score %
+    val totalStudyTimeMinutes: Long = 0L,
+    val totalQuestionsSolved: Int = 0,
+    val totalTestsCompleted: Int = 0,
+    val overallAverageScore: Double = 0.0,
+    val overallAccuracy: Double = 0.0,
+    val totalMistakesRecorded: Int = 0,
+    val resolvedMistakesCount: Int = 0,
+    val revisionDueTodayCount: Int = 0,
+    val currentStreakDays: Int = 0,
+    val subjectMasteries: List<SubjectMasteryInfo> = emptyList(),
+    val weakChapters: List<ChapterProgressInfo> = emptyList(),
+    val strongChapters: List<ChapterProgressInfo> = emptyList(),
+    val recentScoreTrend: List<Pair<String, Double>> = emptyList() // Date/Title to Score %
 )

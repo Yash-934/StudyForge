@@ -16,6 +16,7 @@ import com.studyforge.app.data.local.entities.TestAnswerEntity
 import com.studyforge.app.data.local.entities.TestAttemptEntity
 import com.studyforge.app.data.local.entities.TestEntity
 import com.studyforge.app.data.local.entities.TimetableEntity
+import com.studyforge.app.domain.json.CurriculumValidationResult
 import com.studyforge.app.domain.model.ChapterProgressInfo
 import com.studyforge.app.domain.model.Difficulty
 import com.studyforge.app.domain.model.GlobalAnalytics
@@ -429,12 +430,145 @@ class StudyRepository(private val db: AppDatabase) {
         )
     }
 
+    suspend fun updateFlashcard(flashcard: FlashcardEntity) = db.flashcardDao().updateFlashcard(flashcard)
+    suspend fun deleteFlashcard(flashcard: FlashcardEntity) = db.flashcardDao().deleteFlashcard(flashcard)
+
     // Timetable & Journal
     suspend fun insertTimetableEntry(entry: TimetableEntity) = db.timetableDao().insertEntry(entry)
     suspend fun updateTimetableEntry(entry: TimetableEntity) = db.timetableDao().updateEntry(entry)
     suspend fun deleteTimetableEntry(entry: TimetableEntity) = db.timetableDao().deleteEntry(entry)
     suspend fun insertJournalEntry(entry: JournalEntity) = db.journalDao().insertOrUpdateJournal(entry)
     suspend fun getJournalForDate(dateMillis: Long): JournalEntity? = db.journalDao().getEntryForDate(dateMillis)
+
+    data class CurriculumImportSummary(
+        val batchId: Long,
+        val batchName: String,
+        val subjectsCount: Int,
+        val chaptersCount: Int,
+        val notesCount: Int,
+        val formulasCount: Int,
+        val questionsCount: Int
+    )
+
+    suspend fun importCurriculum(
+        curriculum: CurriculumValidationResult,
+        targetBatchId: Long? = null
+    ): CurriculumImportSummary = withContext(Dispatchers.IO) {
+        val resolvedBatchId: Long = when {
+            targetBatchId != null && targetBatchId > 0L -> targetBatchId
+            curriculum.batch != null -> {
+                val b = curriculum.batch
+                insertBatch(
+                    BatchEntity(
+                        name = b.name,
+                        courseOrClass = b.courseOrClass,
+                        session = b.session,
+                        goal = b.goal,
+                        description = b.description
+                    )
+                )
+            }
+            else -> {
+                val existing = db.batchDao().getAllBatches().first().firstOrNull()
+                existing?.id ?: insertBatch(BatchEntity(name = "Imported Batch"))
+            }
+        }
+
+        val targetBatch = db.batchDao().getAllBatches().first().find { it.id == resolvedBatchId }
+        val batchName = targetBatch?.name ?: curriculum.batch?.name ?: "Imported Batch"
+
+        var subjectsCount = 0
+        var chaptersCount = 0
+        var notesCount = 0
+        var formulasCount = 0
+        var questionsCount = 0
+
+        for (subDto in curriculum.subjects) {
+            val subjectId = insertSubject(
+                SubjectEntity(
+                    batchId = resolvedBatchId,
+                    name = subDto.name,
+                    iconName = subDto.iconName,
+                    colorHex = subDto.colorHex
+                )
+            )
+            subjectsCount++
+
+            for (chapDto in subDto.chapters) {
+                val chapterId = insertChapter(
+                    ChapterEntity(
+                        subjectId = subjectId,
+                        batchId = resolvedBatchId,
+                        name = chapDto.name,
+                        orderIndex = chapDto.orderIndex
+                    )
+                )
+                chaptersCount++
+
+                for (noteDto in chapDto.notes) {
+                    insertNote(
+                        NoteEntity(
+                            chapterId = chapterId,
+                            subjectId = subjectId,
+                            batchId = resolvedBatchId,
+                            title = noteDto.title,
+                            contentMarkdown = noteDto.content,
+                            tagsJson = "[\"Imported\"]"
+                        )
+                    )
+                    notesCount++
+                }
+
+                for (formulaDto in chapDto.formulas) {
+                    insertFormula(
+                        FormulaEntity(
+                            chapterId = chapterId,
+                            subjectId = subjectId,
+                            batchId = resolvedBatchId,
+                            title = formulaDto.title,
+                            formulaLatex = formulaDto.latex,
+                            explanation = formulaDto.explanation,
+                            tagsJson = "[\"Imported\"]"
+                        )
+                    )
+                    formulasCount++
+                }
+
+                for (qDto in chapDto.questions) {
+                    insertQuestion(
+                        QuestionEntity(
+                            chapterId = chapterId,
+                            subjectId = subjectId,
+                            batchId = resolvedBatchId,
+                            type = qDto.type,
+                            questionText = qDto.question,
+                            optionsJson = JSONArray(qDto.options).toString(),
+                            correctAnswersJson = JSONArray(qDto.correctAnswers).toString(),
+                            marks = qDto.marks,
+                            negativeMarks = qDto.negativeMarks,
+                            difficulty = qDto.difficulty,
+                            topic = qDto.topic,
+                            hint = qDto.hint,
+                            explanation = qDto.explanation,
+                            detailedSolution = qDto.detailedSolution,
+                            tagsJson = "[\"Imported\"]"
+                        )
+                    )
+                    questionsCount++
+                }
+            }
+        }
+
+        CurriculumImportSummary(
+            batchId = resolvedBatchId,
+            batchName = batchName,
+            subjectsCount = subjectsCount,
+            chaptersCount = chaptersCount,
+            notesCount = notesCount,
+            formulasCount = formulasCount,
+            questionsCount = questionsCount
+        )
+    }
 
     private data class AnalyticsQuad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 

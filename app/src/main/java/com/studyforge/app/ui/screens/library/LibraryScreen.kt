@@ -30,12 +30,14 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,6 +83,8 @@ fun LibraryScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showCreateBatchDialog by remember { mutableStateOf(false) }
     var showCreateSubjectDialogForBatch by remember { mutableStateOf<Long?>(null) }
+    var showImportCurriculumDialog by remember { mutableStateOf(false) }
+    var importTargetBatchId by remember { mutableStateOf<Long?>(null) }
     var batchToDelete by remember { mutableStateOf<BatchEntity?>(null) }
 
     val filteredBatches = remember(batches, searchQuery) {
@@ -114,16 +118,36 @@ fun LibraryScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Library",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Batches • Subjects • Chapters Knowledge Base",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Library",
+                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Batches • Subjects • Chapters Knowledge Base",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    FilledTonalButton(
+                        onClick = {
+                            importTargetBatchId = null
+                            showImportCurriculumDialog = true
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Import JSON")
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
@@ -148,6 +172,20 @@ fun LibraryScreen(
                         actionLabel = "Create First Batch",
                         onAction = { showCreateBatchDialog = true }
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        OutlinedButton(
+                            onClick = {
+                                importTargetBatchId = null
+                                showImportCurriculumDialog = true
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Or Import Batch & Subjects via JSON")
+                        }
+                    }
                 }
             } else {
                 items(filteredBatches) { batch ->
@@ -163,6 +201,10 @@ fun LibraryScreen(
                         chaptersCount = batchChapters.size,
                         avgMastery = avgMastery,
                         onAddSubject = { showCreateSubjectDialogForBatch = batch.id },
+                        onImportSubjectsJson = {
+                            importTargetBatchId = batch.id
+                            showImportCurriculumDialog = true
+                        },
                         onDeleteBatch = { batchToDelete = batch }
                     ) {
                         // Expandable or List of Subjects inside this Batch
@@ -232,6 +274,22 @@ fun LibraryScreen(
             onDismiss = { batchToDelete = null }
         )
     }
+
+    // Import Curriculum (Batch & Subjects) JSON Dialog
+    if (showImportCurriculumDialog) {
+        ImportCurriculumDialog(
+            viewModel = viewModel,
+            preselectedBatchId = importTargetBatchId,
+            onDismiss = {
+                showImportCurriculumDialog = false
+                importTargetBatchId = null
+            },
+            onSuccess = { createdBatchId ->
+                showImportCurriculumDialog = false
+                importTargetBatchId = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -241,6 +299,7 @@ fun BatchCard(
     chaptersCount: Int,
     avgMastery: Int,
     onAddSubject: () -> Unit,
+    onImportSubjectsJson: () -> Unit = {},
     onDeleteBatch: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -287,6 +346,14 @@ fun BatchCard(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("Import Subjects (JSON)") },
+                            leadingIcon = { Icon(Icons.Default.UploadFile, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onImportSubjectsJson()
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text("Delete Batch", color = MaterialTheme.colorScheme.error) },
                             leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
