@@ -5,6 +5,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,13 +24,16 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -89,6 +93,7 @@ fun QuestionBankScreen(
     var selectedDifficulty by remember { mutableStateOf<Difficulty?>(null) }
     var selectedType by remember { mutableStateOf<QuestionType?>(null) }
     var filterUnsolvedOnly by remember { mutableStateOf(false) }
+    var showBulkImportDialog by remember { mutableStateOf(false) }
 
     val filteredQuestions = remember(rawList, searchQuery, selectedDifficulty, selectedType, filterUnsolvedOnly) {
         rawList.filter { q ->
@@ -119,6 +124,16 @@ fun QuestionBankScreen(
                     }
                 },
                 actions = {
+                    FilledTonalButton(
+                        onClick = { showBulkImportDialog = true },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Layers, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Bulk Import All Chapters", style = MaterialTheme.typography.labelSmall)
+                    }
                     IconButton(onClick = onNavigateToJsonImport) {
                         Icon(
                             imageVector = Icons.Default.UploadFile,
@@ -196,18 +211,35 @@ fun QuestionBankScreen(
                     EmptyState(
                         icon = Icons.Default.Quiz,
                         title = "No Questions Found",
-                        message = "Add questions to your Question Bank or import from JSON files / paste.",
+                        message = "Add questions to your Question Bank or import all chapters questions at once via JSON.",
                         actionLabel = "Add Question",
                         onAction = { onNavigateToCreateQuestion(chapterId) }
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = onNavigateToJsonImport,
-                        shape = RoundedCornerShape(12.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Import JSON File / Paste")
+                        Button(
+                            onClick = { showBulkImportDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1.1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Layers, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Import All Chapters (JSON)")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToJsonImport,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(0.9f)
+                        ) {
+                            Icon(imageVector = Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Single JSON")
+                        }
                     }
                 }
             } else {
@@ -226,6 +258,17 @@ fun QuestionBankScreen(
                 }
             }
         }
+    }
+
+    if (showBulkImportDialog) {
+        ImportBulkQuestionBankDialog(
+            viewModel = viewModel,
+            preselectedSubjectId = if (subjectId > 0L) subjectId else null,
+            onDismiss = { showBulkImportDialog = false },
+            onSuccess = { summary ->
+                showBulkImportDialog = false
+            }
+        )
     }
 }
 

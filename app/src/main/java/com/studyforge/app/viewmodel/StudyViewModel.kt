@@ -25,6 +25,9 @@ import com.studyforge.app.domain.ai.AiResponse
 import com.studyforge.app.domain.ai.AiStudyAssistant
 import com.studyforge.app.domain.ai.GeminiAiStudyAssistant
 import com.studyforge.app.domain.json.BackupManager
+import com.studyforge.app.domain.json.BulkQuestionBankImportSummary
+import com.studyforge.app.domain.json.BulkQuestionBankParser
+import com.studyforge.app.domain.json.BulkQuestionBankValidationResult
 import com.studyforge.app.domain.json.CurriculumJsonParser
 import com.studyforge.app.domain.json.CurriculumValidationResult
 import com.studyforge.app.domain.json.TestJsonParser
@@ -806,6 +809,35 @@ class StudyViewModel(
                 onCompleted(summary.batchId)
             } catch (e: Exception) {
                 showMessage("Failed to import curriculum: ${e.message}")
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Bulk Question Bank Import (All Chapters at Once)
+    // -------------------------------------------------------------
+    fun validateBulkQuestionBankJson(json: String, defaultSubjectName: String? = null): BulkQuestionBankValidationResult {
+        return BulkQuestionBankParser.parseAndValidate(json, defaultSubjectName)
+    }
+
+    fun importBulkQuestionBank(
+        result: BulkQuestionBankValidationResult,
+        targetBatchId: Long,
+        fallbackSubjectId: Long?,
+        onCompleted: (summary: BulkQuestionBankImportSummary) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            if (!result.isValid) {
+                showMessage("Cannot import: JSON format is invalid.")
+                return@launch
+            }
+            try {
+                val summary = repository.importBulkQuestionBank(result, targetBatchId, fallbackSubjectId)
+                val msg = "Imported ${summary.totalQuestionsImported} questions across ${summary.chaptersAffected} chapters into '${summary.batchName}' (${summary.existingChaptersMatched} matched, ${summary.newChaptersCreated} created)!"
+                showMessage(msg)
+                onCompleted(summary)
+            } catch (e: Exception) {
+                showMessage("Failed to import questions: ${e.message}")
             }
         }
     }

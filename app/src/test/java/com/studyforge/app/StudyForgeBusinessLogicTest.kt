@@ -5,6 +5,7 @@ import com.studyforge.app.data.local.entities.MistakeEntity
 import com.studyforge.app.data.local.entities.QuestionEntity
 import com.studyforge.app.data.local.entities.RevisionItemEntity
 import com.studyforge.app.data.local.entities.TestAttemptEntity
+import com.studyforge.app.domain.json.BulkQuestionBankParser
 import com.studyforge.app.domain.json.TestJsonParser
 import com.studyforge.app.domain.model.Difficulty
 import com.studyforge.app.domain.model.MasteryCalculator
@@ -201,5 +202,48 @@ class StudyForgeBusinessLogicTest {
         // Ensure no duplicates
         val uniqueIds = selected.map { it.id }.toSet()
         assertEquals(10, uniqueIds.size)
+    }
+
+    @Test
+    fun testBulkQuestionBankParser_multiChapterExample_parsesAllChaptersAndQuestions() {
+        val result = BulkQuestionBankParser.parseAndValidate(BulkQuestionBankParser.EXAMPLE_MULTI_CHAPTER_JSON)
+        assertTrue(result.isValid)
+        assertEquals("JEE Advanced 2026", result.batchName)
+        assertEquals(3, result.totalChaptersCount)
+        assertEquals(6, result.totalQuestionsCount)
+
+        val chapterNames = result.chapterGroups.map { it.chapterName }
+        assertTrue(chapterNames.contains("Kinematics"))
+        assertTrue(chapterNames.contains("Laws of Motion & Friction"))
+        assertTrue(chapterNames.contains("Work, Power and Energy"))
+
+        val kinematics = result.chapterGroups.first { it.chapterName == "Kinematics" }
+        assertEquals(2, kinematics.questions.size)
+        assertEquals(QuestionType.MCQ, kinematics.questions[0].type)
+        assertEquals(QuestionType.NUMERICAL, kinematics.questions[1].type)
+    }
+
+    @Test
+    fun testBulkQuestionBankParser_multiSubjectExample_parsesSubjectsAndChapters() {
+        val result = BulkQuestionBankParser.parseAndValidate(BulkQuestionBankParser.EXAMPLE_MULTI_SUBJECT_JSON)
+        assertTrue(result.isValid)
+        assertEquals(4, result.totalChaptersCount)
+        assertEquals(4, result.totalQuestionsCount)
+
+        val subjects = result.chapterGroups.mapNotNull { it.subjectName }.toSet()
+        assertTrue(subjects.contains("Physics"))
+        assertTrue(subjects.contains("Chemistry"))
+    }
+
+    @Test
+    fun testBulkQuestionBankParser_flatTaggedQuestions_groupsCorrectly() {
+        val result = BulkQuestionBankParser.parseAndValidate(BulkQuestionBankParser.EXAMPLE_FLAT_QUESTIONS_JSON)
+        assertTrue(result.isValid)
+        assertEquals(3, result.totalChaptersCount)
+        assertEquals(4, result.totalQuestionsCount)
+
+        val waveOptics = result.chapterGroups.find { it.chapterName == "Wave Optics" }
+        assertNotNull(waveOptics)
+        assertEquals(2, waveOptics?.questions?.size)
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -72,6 +73,7 @@ import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.SquircleIconBadge
 import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.screens.library.ImportCurriculumDialog
+import com.studyforge.app.ui.screens.questions.ImportBulkQuestionBankDialog
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
@@ -95,6 +97,7 @@ fun JsonImportScreen(
     var validationResult by remember { mutableStateOf<TestValidationResult?>(null) }
     var importMode by remember { mutableIntStateOf(1) } // 1 = As Test, 2 = Question Bank, 3 = Assign Chapter
     var showCurriculumDialog by remember { mutableStateOf(false) }
+    var showBulkQuestionBankDialog by remember { mutableStateOf(false) }
 
     var selectedBatchId by remember { mutableStateOf(batches.firstOrNull()?.id ?: 1L) }
     var selectedSubjectId by remember { mutableStateOf(subjects.firstOrNull()?.id ?: 1L) }
@@ -128,14 +131,24 @@ fun JsonImportScreen(
                 },
                 actions = {
                     FilledTonalButton(
+                        onClick = { showBulkQuestionBankDialog = true },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("All Chapters Q-Bank", style = MaterialTheme.typography.labelSmall)
+                    }
+                    FilledTonalButton(
                         onClick = { showCurriculumDialog = true },
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         modifier = Modifier.padding(end = 4.dp)
                     ) {
                         Icon(Icons.Default.Layers, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Batch / Subjects", style = MaterialTheme.typography.labelSmall)
+                        Text("Batch & Subjects", style = MaterialTheme.typography.labelSmall)
                     }
                     IconButton(onClick = onNavigateToSchemaHelp) {
                         Icon(imageVector = Icons.Filled.HelpOutline, contentDescription = "JSON Schema Help")
@@ -152,6 +165,48 @@ fun JsonImportScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SquircleIconBadge(
+                            icon = Icons.Default.Quiz,
+                            accentColor = MaterialTheme.colorScheme.secondary,
+                            size = 38.dp,
+                            iconSize = 20.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Import All Chapters Question Bank",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = "Multi-chapter questions auto-mapped to all chapters via JSON",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Button(
+                            onClick = { showBulkQuestionBankDialog = true },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("Open", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -457,6 +512,18 @@ fun JsonImportScreen(
             onSuccess = { createdBatchId ->
                 showCurriculumDialog = false
                 selectedBatchId = createdBatchId
+            }
+        )
+    }
+
+    if (showBulkQuestionBankDialog) {
+        ImportBulkQuestionBankDialog(
+            viewModel = viewModel,
+            preselectedBatchId = selectedBatchId,
+            preselectedSubjectId = selectedSubjectId,
+            onDismiss = { showBulkQuestionBankDialog = false },
+            onSuccess = {
+                showBulkQuestionBankDialog = false
             }
         )
     }

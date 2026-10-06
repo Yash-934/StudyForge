@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,15 +25,19 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Quiz
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
@@ -61,6 +66,7 @@ import com.studyforge.app.ui.components.MasteryProgressBar
 import com.studyforge.app.ui.components.SectionHeader
 import com.studyforge.app.ui.components.StatCard
 import com.studyforge.app.ui.components.StudyCard
+import com.studyforge.app.ui.screens.questions.ImportBulkQuestionBankDialog
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
 import com.studyforge.app.viewmodel.StudyViewModel
@@ -94,6 +100,7 @@ fun SubjectDetailScreen(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Overview", "Chapters", "Notes", "Questions", "Tests")
     var showCreateChapterDialog by remember { mutableStateOf(false) }
+    var showBulkQuestionBankDialog by remember { mutableStateOf(false) }
 
     val accent = try {
         Color(android.graphics.Color.parseColor(subject?.colorHex ?: "#4F46E5"))
@@ -113,6 +120,18 @@ fun SubjectDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    FilledTonalButton(
+                        onClick = { showBulkQuestionBankDialog = true },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Import Questions", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             )
@@ -299,11 +318,38 @@ fun SubjectDetailScreen(
                         if (subjectQuestions.isEmpty()) {
                             item {
                                 EmptyState(
-                                    title = "No Questions Yet",
-                                    message = "Add questions inside chapters or import test JSON files."
+                                    icon = Icons.Default.Quiz,
+                                    title = "No Questions in this Subject",
+                                    message = "Import questions across all chapters at once via JSON or add them inside chapters.",
+                                    actionLabel = "Import All Chapters Question Bank",
+                                    onAction = { showBulkQuestionBankDialog = true }
                                 )
                             }
                         } else {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${subjectQuestions.size} Questions in Subject",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    OutlinedButton(
+                                        onClick = { showBulkQuestionBankDialog = true },
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Import More (JSON)", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
                             items(subjectQuestions) { q ->
                                 StudyCard(
                                     shape = RoundedCornerShape(18.dp)
@@ -367,6 +413,18 @@ fun SubjectDetailScreen(
                     viewModel.createChapter(subjectId = subject.id, batchId = subject.batchId, name = name)
                 }
                 showCreateChapterDialog = false
+            }
+        )
+    }
+
+    if (showBulkQuestionBankDialog) {
+        ImportBulkQuestionBankDialog(
+            viewModel = viewModel,
+            preselectedBatchId = subject?.batchId,
+            preselectedSubjectId = subjectId,
+            onDismiss = { showBulkQuestionBankDialog = false },
+            onSuccess = {
+                showBulkQuestionBankDialog = false
             }
         )
     }
