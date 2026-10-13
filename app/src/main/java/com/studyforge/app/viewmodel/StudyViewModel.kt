@@ -41,6 +41,7 @@ import com.studyforge.app.domain.model.SmartTestGenerator
 import com.studyforge.app.domain.model.TestImportDto
 import com.studyforge.app.domain.model.TestMode
 import com.studyforge.app.domain.model.TestValidationResult
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -670,8 +671,8 @@ class StudyViewModel(
         }
         _userAnswers.value = current
 
-        // Save progress draft
-        viewModelScope.launch {
+        // Save progress draft on background thread without blocking UI
+        viewModelScope.launch(Dispatchers.IO) {
             val draft = org.json.JSONObject()
             current.forEach { (qid, ans) ->
                 draft.put(qid.toString(), JSONArray(ans))

@@ -138,8 +138,8 @@ fun NoteEditorScreen(
         }
     }
 
-    LaunchedEffect(activeNote) {
-        if (activeNote != null) {
+    LaunchedEffect(activeNoteId, activeNote?.id) {
+        if (activeNote != null && !isEditing) {
             title = activeNote.title
             contentMarkdown = activeNote.contentMarkdown
             isFavorite = activeNote.isFavorite
@@ -456,7 +456,10 @@ fun NoteEditorScreen(
 
                 items(
                     count = parsedNodes.size,
-                    key = { index -> index }
+                    key = { index ->
+                        val node = parsedNodes[index]
+                        "${node.javaClass.simpleName}_${index}_${node.hashCode()}"
+                    }
                 ) { index ->
                     RenderMarkdownNode(parsedNodes[index])
                 }

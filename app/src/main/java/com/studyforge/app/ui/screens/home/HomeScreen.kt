@@ -49,6 +49,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +69,7 @@ import com.studyforge.app.ui.components.SquircleIconBadge
 import com.studyforge.app.ui.components.StatCard
 import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.components.StudyHeatmap
+import com.studyforge.app.ui.screens.questions.ImportBulkQuestionBankDialog
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.ui.theme.SuccessGreen
@@ -96,6 +100,7 @@ fun HomeScreen(
     val sessions by viewModel.sessions.collectAsState()
 
     val topChapter = chapters.firstOrNull()
+    var showBulkQBankDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier
@@ -192,6 +197,11 @@ fun HomeScreen(
                 item {
                     ActionChip(label = "Import JSON", icon = Icons.Default.FileUpload) {
                         onNavigateToJsonImport()
+                    }
+                }
+                item {
+                    ActionChip(label = "Import All Q-Bank", icon = Icons.Default.Quiz) {
+                        showBulkQBankDialog = true
                     }
                 }
                 item {
@@ -539,6 +549,16 @@ fun HomeScreen(
         item {
             Spacer(modifier = Modifier.height(72.dp))
         }
+    }
+
+    if (showBulkQBankDialog) {
+        ImportBulkQuestionBankDialog(
+            viewModel = viewModel,
+            onDismiss = { showBulkQBankDialog = false },
+            onSuccess = { summary ->
+                viewModel.showMessage("Imported ${summary.totalQuestionsImported} questions across ${summary.chaptersAffected} chapters!")
+            }
+        )
     }
 }
 

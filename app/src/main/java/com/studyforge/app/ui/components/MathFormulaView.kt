@@ -97,7 +97,7 @@ fun MathFormulaView(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT
                     )
-                    setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                     setBackgroundColor(AndroidColor.TRANSPARENT)
                     isVerticalScrollBarEnabled = false
                     isHorizontalScrollBarEnabled = true
@@ -217,7 +217,7 @@ fun MathRichTextView(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT
                     )
-                    setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                     setBackgroundColor(AndroidColor.TRANSPARENT)
                     isVerticalScrollBarEnabled = false
                     isHorizontalScrollBarEnabled = false

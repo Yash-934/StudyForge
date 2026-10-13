@@ -35,11 +35,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -75,12 +77,22 @@ fun GlobalSearchScreen(
     val tests by viewModel.tests.collectAsState()
 
     var query by remember { mutableStateOf("") }
+    var debouncedQuery by remember { mutableStateOf("") }
 
-    val results = remember(query, batches, subjects, chapters, notes, formulas, questions, tests) {
-        if (query.isBlank() || query.length < 2) emptyList()
+    LaunchedEffect(query) {
+        if (query.isBlank()) {
+            debouncedQuery = ""
+        } else {
+            delay(250)
+            debouncedQuery = query
+        }
+    }
+
+    val results = remember(debouncedQuery, batches, subjects, chapters, notes, formulas, questions, tests) {
+        if (debouncedQuery.isBlank() || debouncedQuery.length < 2) emptyList()
         else {
             val list = mutableListOf<SearchResultItem>()
-            val q = query.trim()
+            val q = debouncedQuery.trim()
 
             chapters.filter { it.name.contains(q, ignoreCase = true) }.forEach {
                 list.add(SearchResultItem(it.name, "Chapter", "Chapter", Icons.Default.Folder, it.id))

@@ -52,17 +52,16 @@ fun StudyHeatmap(
     sessions: List<StudySessionEntity>,
     modifier: Modifier = Modifier
 ) {
-    // Generate past 12 weeks of days (84 days)
-    val calendar = Calendar.getInstance()
-    calendar.set(Calendar.HOUR_OF_DAY, 0)
-    calendar.set(Calendar.MINUTE, 0)
-    calendar.set(Calendar.SECOND, 0)
-    calendar.set(Calendar.MILLISECOND, 0)
-
-    val todayMillis = calendar.timeInMillis
-    val daysCount = 84 // 12 weeks
     val daysList = remember(sessions) {
-        val list = mutableListOf<DayActivity>()
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val todayMillis = calendar.timeInMillis
+        val daysCount = 84 // 12 weeks
+        val list = ArrayList<DayActivity>(daysCount)
         val cal = Calendar.getInstance()
         val sdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
@@ -72,10 +71,16 @@ fun StudyHeatmap(
             val dMillis = cal.timeInMillis
             val nextDayMillis = dMillis + 86400000L
 
-            val matchingSessions = sessions.filter { it.dateMillis in dMillis until nextDayMillis }
-            val totalMins = matchingSessions.sumOf { it.durationMinutes }
-            val qSolved = matchingSessions.sumOf { it.questionsSolved }
-            val tests = matchingSessions.count { it.notes.contains("test", ignoreCase = true) }
+            var totalMins = 0
+            var qSolved = 0
+            var tests = 0
+            for (s in sessions) {
+                if (s.dateMillis in dMillis until nextDayMillis) {
+                    totalMins += s.durationMinutes
+                    qSolved += s.questionsSolved
+                    if (s.notes.contains("test", ignoreCase = true)) tests++
+                }
+            }
 
             list.add(
                 DayActivity(
@@ -90,6 +95,7 @@ fun StudyHeatmap(
         list
     }
 
+    val weeks = remember(daysList) { daysList.chunked(7) }
     var selectedDay by remember { mutableStateOf<DayActivity?>(null) }
     val scrollState = rememberScrollState(Int.MAX_VALUE) // Scroll to most recent
 
@@ -123,8 +129,6 @@ fun StudyHeatmap(
                 modifier = Modifier.horizontalScroll(scrollState),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Chunk into weeks of 7
-                val weeks = daysList.chunked(7)
                 for (week in weeks) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         for (day in week) {

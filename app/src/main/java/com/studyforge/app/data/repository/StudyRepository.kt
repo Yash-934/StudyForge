@@ -134,8 +134,8 @@ class StudyRepository(private val db: AppDatabase) {
         return db.testDao().insertAttempt(attempt)
     }
 
-    suspend fun updateAttemptDraft(attemptId: Long, answersJson: String) {
-        val existing = db.testDao().getAttemptById(attemptId) ?: return
+    suspend fun updateAttemptDraft(attemptId: Long, answersJson: String) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val existing = db.testDao().getAttemptById(attemptId) ?: return@withContext
         db.testDao().updateAttempt(existing.copy(answersDraftJson = answersJson))
     }
 
@@ -709,7 +709,7 @@ class StudyRepository(private val db: AppDatabase) {
 
     private data class AnalyticsQuad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
-    // Global Analytics Stream
+    // Global Analytics Stream - Optimized with indexed maps and background dispatcher
     fun getGlobalAnalytics(): Flow<GlobalAnalytics> {
         val baseFlow = combine(allChapters, allSubjects, allQuestions) { chapters, subjects, questions ->
             Triple(chapters, subjects, questions)
@@ -727,20 +727,27 @@ class StudyRepository(private val db: AppDatabase) {
             val sessions = act.third
             val revisionDue = act.fourth
 
+            // Pre-index collections for O(1) lookups instead of O(N^2) filtering
+            val questionsByChapter = questions.groupBy { it.chapterId }
+            val mistakesByChapter = mistakes.groupBy { it.chapterId }
+            val chaptersBySubject = chapters.groupBy { it.subjectId }
+            val subjectNames = subjects.associate { it.id to it.name }
+
             val totalStudyMinutes = sessions.sumOf { it.durationMinutes.toLong() }
             val totalQuestionsSolved = questions.sumOf { it.timesCorrect }
             val totalTestsCompleted = attempts.size
             val avgScore = if (attempts.isNotEmpty()) attempts.sumOf { it.accuracyPercentage } / attempts.size else 0.0
-            val overallAccuracy = if (questions.sumOf { it.timesAttempted } > 0) {
-                (questions.sumOf { it.timesCorrect }.toDouble() / questions.sumOf { it.timesAttempted }.toDouble() * 100.0)
+            val totalAttempted = questions.sumOf { it.timesAttempted }
+            val overallAccuracy = if (totalAttempted > 0) {
+                (totalQuestionsSolved.toDouble() / totalAttempted.toDouble() * 100.0)
             } else {
                 0.0
             }
             val resolvedMistakes = mistakes.count { it.isResolved }
 
-            // Subject Masteries
+            // Subject Masteries using pre-grouped chapters
             val subjectMasteryList = subjects.map { s ->
-                val chapForSub = chapters.filter { it.subjectId == s.id }
+                val chapForSub = chaptersBySubject[s.id] ?: emptyList()
                 val avgMastery = if (chapForSub.isNotEmpty()) chapForSub.sumOf { it.masteryScore } / chapForSub.size else 0
                 SubjectMasteryInfo(
                     subjectId = s.id,
@@ -752,9 +759,11 @@ class StudyRepository(private val db: AppDatabase) {
                 )
             }
 
-            // Chapter progress
+            // Chapter progress using pre-grouped maps
             val chapterInfos = chapters.map { c ->
-                val subName = subjects.find { it.id == c.subjectId }?.name ?: ""
+                val subName = subjectNames[c.subjectId] ?: ""
+                val chapQuestions = questionsByChapter[c.id] ?: emptyList()
+                val chapMistakes = mistakesByChapter[c.id] ?: emptyList()
                 ChapterProgressInfo(
                     chapterId = c.id,
                     chapterName = c.name,
@@ -762,10 +771,10 @@ class StudyRepository(private val db: AppDatabase) {
                     masteryScore = c.masteryScore,
                     notesCount = 0,
                     formulasCount = 0,
-                    questionsCount = questions.count { it.chapterId == c.id },
+                    questionsCount = chapQuestions.size,
                     testsCount = 0,
-                    solvedQuestionsCount = questions.filter { it.chapterId == c.id }.sumOf { it.timesCorrect },
-                    mistakeCount = mistakes.count { it.chapterId == c.id && !it.isResolved }
+                    solvedQuestionsCount = chapQuestions.sumOf { it.timesCorrect },
+                    mistakeCount = chapMistakes.count { !it.isResolved }
                 )
             }
 
@@ -803,7 +812,7 @@ class StudyRepository(private val db: AppDatabase) {
                 strongChapters = strong,
                 recentScoreTrend = recentTrend
             )
-        }.flowOn(Dispatchers.IO)
+        }.flowOn(Dispatchers.Default)
     }
 
     // Optional sample data seeder for development/testing

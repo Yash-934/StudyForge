@@ -28,9 +28,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
+import com.studyforge.app.ui.screens.questions.ImportBulkQuestionBankDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -84,6 +86,7 @@ fun LibraryScreen(
     var showCreateBatchDialog by remember { mutableStateOf(false) }
     var showCreateSubjectDialogForBatch by remember { mutableStateOf<Long?>(null) }
     var showImportCurriculumDialog by remember { mutableStateOf(false) }
+    var showImportBulkQBankDialog by remember { mutableStateOf(false) }
     var importTargetBatchId by remember { mutableStateOf<Long?>(null) }
     var batchToDelete by remember { mutableStateOf<BatchEntity?>(null) }
 
@@ -136,16 +139,29 @@ fun LibraryScreen(
                         )
                     }
 
-                    FilledTonalButton(
-                        onClick = {
-                            importTargetBatchId = null
-                            showImportCurriculumDialog = true
-                        },
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Import JSON")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(
+                            onClick = {
+                                importTargetBatchId = null
+                                showImportBulkQBankDialog = true
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("All Q-Bank", style = MaterialTheme.typography.labelSmall)
+                        }
+                        FilledTonalButton(
+                            onClick = {
+                                importTargetBatchId = null
+                                showImportCurriculumDialog = true
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Curriculum", style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -204,6 +220,10 @@ fun LibraryScreen(
                         onImportSubjectsJson = {
                             importTargetBatchId = batch.id
                             showImportCurriculumDialog = true
+                        },
+                        onImportQBankJson = {
+                            importTargetBatchId = batch.id
+                            showImportBulkQBankDialog = true
                         },
                         onDeleteBatch = { batchToDelete = batch }
                     ) {
@@ -290,6 +310,23 @@ fun LibraryScreen(
             }
         )
     }
+
+    // Import All Chapters Question Bank JSON Dialog
+    if (showImportBulkQBankDialog) {
+        ImportBulkQuestionBankDialog(
+            viewModel = viewModel,
+            preselectedBatchId = importTargetBatchId,
+            onDismiss = {
+                showImportBulkQBankDialog = false
+                importTargetBatchId = null
+            },
+            onSuccess = { summary ->
+                showImportBulkQBankDialog = false
+                importTargetBatchId = null
+                viewModel.showMessage("Imported ${summary.totalQuestionsImported} questions across ${summary.chaptersAffected} chapters!")
+            }
+        )
+    }
 }
 
 @Composable
@@ -300,6 +337,7 @@ fun BatchCard(
     avgMastery: Int,
     onAddSubject: () -> Unit,
     onImportSubjectsJson: () -> Unit = {},
+    onImportQBankJson: () -> Unit = {},
     onDeleteBatch: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -346,6 +384,14 @@ fun BatchCard(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("Import All Chapters Q-Bank") },
+                            leadingIcon = { Icon(Icons.Default.Quiz, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onImportQBankJson()
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text("Import Subjects (JSON)") },
                             leadingIcon = { Icon(Icons.Default.UploadFile, contentDescription = null) },
