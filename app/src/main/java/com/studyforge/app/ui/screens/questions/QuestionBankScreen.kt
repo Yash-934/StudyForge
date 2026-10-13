@@ -45,6 +45,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,7 +61,7 @@ import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.ui.components.DifficultyBadge
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MarkdownMathView
-import com.studyforge.app.ui.components.MathRichTextView
+import com.studyforge.app.ui.components.OptionMathText
 import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.viewmodel.StudyViewModel
 import org.json.JSONArray
@@ -90,20 +91,34 @@ fun QuestionBankScreen(
     }
 
     var searchQuery by remember { mutableStateOf("") }
+    var debouncedQuery by remember { mutableStateOf("") }
     var selectedDifficulty by remember { mutableStateOf<Difficulty?>(null) }
     var selectedType by remember { mutableStateOf<QuestionType?>(null) }
     var filterUnsolvedOnly by remember { mutableStateOf(false) }
     var showBulkImportDialog by remember { mutableStateOf(false) }
 
-    val filteredQuestions = remember(rawList, searchQuery, selectedDifficulty, selectedType, filterUnsolvedOnly) {
-        rawList.filter { q ->
-            val matchesSearch = searchQuery.isBlank() ||
-                q.questionText.contains(searchQuery, ignoreCase = true) ||
-                q.topic.contains(searchQuery, ignoreCase = true)
-            val matchesDiff = selectedDifficulty == null || q.difficulty == selectedDifficulty
-            val matchesType = selectedType == null || q.type == selectedType
-            val matchesUnsolved = !filterUnsolvedOnly || q.timesAttempted == 0
-            matchesSearch && matchesDiff && matchesType && matchesUnsolved
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isBlank()) {
+            debouncedQuery = ""
+        } else {
+            kotlinx.coroutines.delay(200)
+            debouncedQuery = searchQuery
+        }
+    }
+
+    val filteredQuestions = remember(rawList, debouncedQuery, selectedDifficulty, selectedType, filterUnsolvedOnly) {
+        if (debouncedQuery.isBlank() && selectedDifficulty == null && selectedType == null && !filterUnsolvedOnly) {
+            rawList
+        } else {
+            rawList.filter { q ->
+                val matchesSearch = debouncedQuery.isBlank() ||
+                    q.questionText.contains(debouncedQuery, ignoreCase = true) ||
+                    q.topic.contains(debouncedQuery, ignoreCase = true)
+                val matchesDiff = selectedDifficulty == null || q.difficulty == selectedDifficulty
+                val matchesType = selectedType == null || q.type == selectedType
+                val matchesUnsolved = !filterUnsolvedOnly || q.timesAttempted == 0
+                matchesSearch && matchesDiff && matchesType && matchesUnsolved
+            }
         }
     }
 
@@ -247,7 +262,7 @@ fun QuestionBankScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(filteredQuestions) { q ->
+                    items(filteredQuestions, key = { it.id }) { q ->
                         QuestionBankCard(
                             question = q,
                             onEdit = { onNavigateToEditQuestion(q.chapterId, q.id) },
@@ -335,9 +350,10 @@ fun QuestionBankCard(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Box(modifier = Modifier.weight(1f)) {
-                            MathRichTextView(
+                            OptionMathText(
                                 text = opt,
-                                fontSizeSp = 15,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }

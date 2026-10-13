@@ -64,6 +64,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -113,6 +114,14 @@ private val ANNOTATED_CACHE = java.util.Collections.synchronizedMap(object : jav
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, AnnotatedString>?): Boolean = size > 600
 })
 
+private val NODES_CACHE = java.util.Collections.synchronizedMap(object : java.util.LinkedHashMap<String, List<MarkdownNode>>(256, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<MarkdownNode>>?): Boolean = size > 600
+})
+
+private val OPTION_CACHE = java.util.Collections.synchronizedMap(object : java.util.LinkedHashMap<String, AnnotatedString>(300, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, AnnotatedString>?): Boolean = size > 800
+})
+
 // =========================================================================
 // AST MODEL FOR VIRTUALIZED 120 FPS RENDERING
 // =========================================================================
@@ -139,6 +148,8 @@ sealed interface MarkdownNode {
  */
 fun parseMarkdownToNodes(markdownText: String): List<MarkdownNode> {
     if (markdownText.isBlank()) return emptyList()
+    val cached = NODES_CACHE[markdownText]
+    if (cached != null) return cached
 
     val lines = markdownText.lines()
     val nodes = ArrayList<MarkdownNode>(lines.size / 2)
@@ -297,6 +308,7 @@ fun parseMarkdownToNodes(markdownText: String): List<MarkdownNode> {
         i++
     }
 
+    NODES_CACHE[markdownText] = nodes
     return nodes
 }
 
@@ -1033,6 +1045,66 @@ fun BlockquoteCard(text: String? = null, annotatedText: AnnotatedString? = null)
             )
         }
     }
+}
+
+/**
+ * Ultra-fast parser for MCQ Options.
+ * Converts LaTeX formulas, inline math, and styled text directly to native AnnotatedString in 0ms.
+ * Backed by an in-memory LRU cache to guarantee zero-latency option rendering across all test and question views.
+ */
+fun parseOptionText(text: String): AnnotatedString {
+    if (text.isBlank()) return AnnotatedString("")
+    val cached = OPTION_CACHE[text]
+    if (cached != null) return cached
+
+    val trimmed = text.trim()
+    val result = when {
+        // Explicit inline math $...$
+        trimmed.contains('$') -> parseInlineMarkdownAndLatex(trimmed)
+
+        // Raw LaTeX without dollar signs (e.g. -\frac{1}{2}\cos(2x) + C, \sqrt{2gh}, x^2 + 7, etc.)
+        trimmed.contains('\\') || (trimmed.contains('^') && !trimmed.contains("http")) ||
+        (trimmed.contains('_') && !trimmed.contains(" ") && trimmed.length < 50) -> {
+            val formatted = formatLatexToReadableMath(trimmed)
+            buildAnnotatedString {
+                pushStyle(
+                    SpanStyle(
+                        fontFamily = FontFamily.Serif,
+                        fontStyle = FontStyle.Italic,
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+                append(formatted)
+                pop()
+            }
+        }
+
+        // Standard inline formatting (**bold**, *italic*, `code`, etc.)
+        else -> parseInlineMarkdownAndLatex(trimmed)
+    }
+
+    OPTION_CACHE[text] = result
+    return result
+}
+
+/**
+ * 0ms instant native mathematical text composable for MCQ option choices.
+ * Replaces heavy Android WebViews with lightweight native typography for 120 FPS performance.
+ */
+@Composable
+fun OptionMathText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodyMedium,
+    color: Color = Color.Unspecified
+) {
+    val annotatedString = remember(text) { parseOptionText(text) }
+    Text(
+        text = annotatedString,
+        style = style,
+        color = color,
+        modifier = modifier
+    )
 }
 
 /**

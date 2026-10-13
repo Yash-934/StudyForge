@@ -63,11 +63,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.key
 import com.studyforge.app.data.local.entities.QuestionEntity
 import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.ui.components.DifficultyBadge
 import com.studyforge.app.ui.components.MarkdownMathView
+import com.studyforge.app.ui.components.OptionMathText
 import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
 import com.studyforge.app.ui.theme.PurpleAccent
@@ -91,7 +92,6 @@ fun TestPlayerScreen(
     val currentIndex by viewModel.currentQuestionIndex.collectAsState()
     val userAnswers by viewModel.userAnswers.collectAsState()
     val markedForReview by viewModel.markedForReview.collectAsState()
-    val timeRemaining by viewModel.timeRemainingSeconds.collectAsState()
 
     var showPaletteSheet by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
@@ -125,12 +125,6 @@ fun TestPlayerScreen(
     }
     val unansweredCount = totalCount - answeredCount
 
-    // Format timer MM:SS
-    val minutes = timeRemaining / 60
-    val seconds = timeRemaining % 60
-    val timerText = String.format("%02d:%02d", minutes, seconds)
-    val isTimeLow = timeRemaining < 120
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -154,31 +148,8 @@ fun TestPlayerScreen(
                     }
                 },
                 actions = {
-                    // Timer Badge
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isTimeLow) ErrorRed.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = null,
-                                tint = if (isTimeLow) ErrorRed else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = timerText,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isTimeLow) ErrorRed else MaterialTheme.colorScheme.onSurface
-                                )
-                            )
-                        }
-                    }
+                    // Isolated Timer Badge that doesn't recompose question cards every second
+                    TestTimerBadge(viewModel = viewModel)
 
                     // Palette launcher
                     IconButton(onClick = { showPaletteSheet = true }) {
@@ -303,14 +274,16 @@ fun TestPlayerScreen(
                         }
                     }
                     opts.forEachIndexed { idx, opt ->
-                        val isSelected = currentAnswers.contains(idx.toString())
-                        OptionCard(
-                            letter = ('A' + idx).toChar(),
-                            text = opt,
-                            isSelected = isSelected,
-                            isMultiple = false,
-                            onClick = { viewModel.selectAnswer(currentQ.id, idx.toString(), isMultiple = false) }
-                        )
+                        key(idx) {
+                            val isSelected = currentAnswers.contains(idx.toString())
+                            OptionCard(
+                                letter = ('A' + idx).toChar(),
+                                text = opt,
+                                isSelected = isSelected,
+                                isMultiple = false,
+                                onClick = { viewModel.selectAnswer(currentQ.id, idx.toString(), isMultiple = false) }
+                            )
+                        }
                     }
                 }
 
@@ -329,14 +302,16 @@ fun TestPlayerScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                     opts.forEachIndexed { idx, opt ->
-                        val isSelected = currentAnswers.contains(idx.toString())
-                        OptionCard(
-                            letter = ('A' + idx).toChar(),
-                            text = opt,
-                            isSelected = isSelected,
-                            isMultiple = true,
-                            onClick = { viewModel.selectAnswer(currentQ.id, idx.toString(), isMultiple = true) }
-                        )
+                        key(idx) {
+                            val isSelected = currentAnswers.contains(idx.toString())
+                            OptionCard(
+                                letter = ('A' + idx).toChar(),
+                                text = opt,
+                                isSelected = isSelected,
+                                isMultiple = true,
+                                onClick = { viewModel.selectAnswer(currentQ.id, idx.toString(), isMultiple = true) }
+                            )
+                        }
                     }
                 }
 
@@ -580,7 +555,11 @@ fun OptionCard(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Box(modifier = Modifier.weight(1f)) {
-                MarkdownMathView(markdownText = text)
+                OptionMathText(
+                    text = text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }
@@ -627,5 +606,47 @@ fun LegendItem(color: Color, label: String) {
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(text = label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/**
+ * Isolated timer badge that collects timeRemaining in its own isolated sub-tree.
+ * Prevents timer ticks from triggering expensive recompositions of the test question and option cards every second.
+ */
+@Composable
+fun TestTimerBadge(
+    viewModel: StudyViewModel,
+    modifier: Modifier = Modifier
+) {
+    val timeRemaining by viewModel.timeRemainingSeconds.collectAsState()
+    val minutes = timeRemaining / 60
+    val seconds = timeRemaining % 60
+    val timerText = String.format("%02d:%02d", minutes, seconds)
+    val isTimeLow = timeRemaining < 120
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isTimeLow) ErrorRed.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Timer,
+                contentDescription = null,
+                tint = if (isTimeLow) ErrorRed else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = timerText,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = if (isTimeLow) ErrorRed else MaterialTheme.colorScheme.onSurface
+                )
+            )
+        }
     }
 }
