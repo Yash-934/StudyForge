@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
@@ -78,7 +80,7 @@ fun SubjectDetailScreen(
     viewModel: StudyViewModel,
     onBack: () -> Unit,
     onNavigateToChapter: (Long) -> Unit,
-    onNavigateToNoteEditor: (Long) -> Unit,
+    onNavigateToNoteEditor: (Long, Long) -> Unit, // chapterId, noteId
     modifier: Modifier = Modifier
 ) {
     val subjects by viewModel.subjects.collectAsState()
@@ -292,18 +294,54 @@ fun SubjectDetailScreen(
                             }
                         } else {
                             items(subjectNotes) { note ->
+                                val noteChapter = chapters.find { it.id == note.chapterId }
                                 StudyCard(
                                     shape = RoundedCornerShape(18.dp),
-                                    onClick = { onNavigateToNoteEditor(note.chapterId) }
+                                    onClick = { onNavigateToNoteEditor(note.chapterId, note.id) }
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = note.title.ifBlank { "Untitled Note" },
+                                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                                )
+                                                if (noteChapter != null) {
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(
+                                                        text = "Chapter: ${noteChapter.name}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            }
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                if (note.isPinned) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.PushPin,
+                                                        contentDescription = "Pinned",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                }
+                                                if (note.isFavorite) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Favorite,
+                                                        contentDescription = "Favorite",
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Text(
-                                            text = note.title,
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = note.contentMarkdown.take(120),
+                                            text = note.contentMarkdown.take(140).ifBlank { "No content written yet." },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )

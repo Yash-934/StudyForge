@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.Button
@@ -39,10 +41,12 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -110,6 +114,7 @@ fun ChapterDetailScreen(
     val chapterFlashcards = flashcards.filter { it.chapterId == chapterId }
 
     var showAiDialog by remember { mutableStateOf(false) }
+    var showNotesSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -296,13 +301,17 @@ fun ChapterDetailScreen(
             item {
                 ModuleHubCard(
                     title = "Notes & Theory",
-                    description = "${chapterNotes.size} notes • Markdown & LaTeX math notation",
+                    description = if (chapterNotes.isEmpty()) "0 notes • Tap to write your first note" else "${chapterNotes.size} notes • Tap to view all notes or create new",
                     icon = Icons.AutoMirrored.Filled.MenuBook,
                     accentColor = MaterialTheme.colorScheme.primary,
                     badgeText = if (chapterNotes.isNotEmpty()) "${chapterNotes.size}" else null,
                     onClick = {
-                        val firstNote = chapterNotes.firstOrNull()
-                        onNavigateToNoteEditor(chapterId, firstNote?.id ?: -1L)
+                        if (chapterNotes.size <= 1) {
+                            val singleNote = chapterNotes.firstOrNull()
+                            onNavigateToNoteEditor(chapterId, singleNote?.id ?: -1L)
+                        } else {
+                            showNotesSheet = true
+                        }
                     }
                 )
             }
@@ -367,8 +376,200 @@ fun ChapterDetailScreen(
                 )
             }
 
+            // Dedicated Chapter Notes section
+            if (chapterNotes.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Chapter Notes (${chapterNotes.size})",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        TextButton(
+                            onClick = { onNavigateToNoteEditor(chapterId, -1L) }
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("New Note", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+
+                items(chapterNotes) { note ->
+                    StudyCard(
+                        shape = RoundedCornerShape(16.dp),
+                        onClick = { onNavigateToNoteEditor(chapterId, note.id) }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SquircleIconBadge(
+                                icon = Icons.AutoMirrored.Filled.MenuBook,
+                                accentColor = MaterialTheme.colorScheme.primary,
+                                size = 40.dp,
+                                iconSize = 20.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = note.title.ifBlank { "Untitled Note" },
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    if (note.isPinned) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.PushPin,
+                                            contentDescription = "Pinned",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                    if (note.isFavorite) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Favorite,
+                                            contentDescription = "Favorite",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = note.contentMarkdown.take(90).ifBlank { "Tap to view/edit note" },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+
+    if (showNotesSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showNotesSheet = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Notes in this Chapter (${chapterNotes.size})",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    FilledTonalButton(
+                        onClick = {
+                            showNotesSheet = false
+                            onNavigateToNoteEditor(chapterId, -1L)
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("New Note")
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(chapterNotes) { note ->
+                        StudyCard(
+                            shape = RoundedCornerShape(16.dp),
+                            onClick = {
+                                showNotesSheet = false
+                                onNavigateToNoteEditor(chapterId, note.id)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SquircleIconBadge(
+                                    icon = Icons.AutoMirrored.Filled.MenuBook,
+                                    accentColor = MaterialTheme.colorScheme.primary,
+                                    size = 40.dp,
+                                    iconSize = 20.dp
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = note.title.ifBlank { "Untitled Note" },
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        if (note.isPinned) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.PushPin,
+                                                contentDescription = "Pinned",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                        if (note.isFavorite) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.Favorite,
+                                                contentDescription = "Favorite",
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = note.contentMarkdown.take(100).ifBlank { "No content" },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

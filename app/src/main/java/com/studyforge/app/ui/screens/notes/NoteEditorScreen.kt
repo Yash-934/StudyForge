@@ -21,20 +21,28 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +50,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -85,17 +94,22 @@ fun NoteEditorScreen(
     val chapters by viewModel.chapters.collectAsState()
     val chapter = chapters.find { it.id == chapterId }
 
-    val existingNote = remember(noteId, notes) {
-        if (noteId > 0) notes.find { it.id == noteId } else null
+    var activeNoteId by remember(noteId) { mutableStateOf(noteId) }
+    val chapterNotes = remember(notes, chapterId) { notes.filter { it.chapterId == chapterId } }
+
+    val activeNote = remember(activeNoteId, notes) {
+        if (activeNoteId > 0L) notes.find { it.id == activeNoteId } else null
     }
 
     // Default to Preview mode when opening existing notes, Edit mode only when creating a new note
-    var isEditing by remember(noteId) { mutableStateOf(noteId <= 0L) }
-    var title by remember { mutableStateOf(existingNote?.title ?: "") }
-    var contentMarkdown by remember { mutableStateOf(existingNote?.contentMarkdown ?: "") }
-    var isFavorite by remember { mutableStateOf(existingNote?.isFavorite ?: false) }
-    var isPinned by remember { mutableStateOf(existingNote?.isPinned ?: false) }
+    var isEditing by remember(activeNoteId) { mutableStateOf(activeNoteId <= 0L) }
+    var title by remember(activeNoteId) { mutableStateOf(activeNote?.title ?: "") }
+    var contentMarkdown by remember(activeNoteId) { mutableStateOf(activeNote?.contentMarkdown ?: "") }
+    var isFavorite by remember(activeNoteId) { mutableStateOf(activeNote?.isFavorite ?: false) }
+    var isPinned by remember(activeNoteId) { mutableStateOf(activeNote?.isPinned ?: false) }
     var showAiDialog by remember { mutableStateOf(false) }
+    var showNoteListMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Zero-permission Photo Picker for importing images from device gallery
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -124,18 +138,37 @@ fun NoteEditorScreen(
         }
     }
 
-    LaunchedEffect(existingNote) {
-        if (existingNote != null) {
-            title = existingNote.title
-            contentMarkdown = existingNote.contentMarkdown
-            isFavorite = existingNote.isFavorite
-            isPinned = existingNote.isPinned
+    LaunchedEffect(activeNote) {
+        if (activeNote != null) {
+            title = activeNote.title
+            contentMarkdown = activeNote.contentMarkdown
+            isFavorite = activeNote.isFavorite
+            isPinned = activeNote.isPinned
         }
     }
 
     // Handle back button: if in edit mode for existing note, return to preview mode
-    BackHandler(enabled = isEditing && noteId > 0L) {
+    BackHandler(enabled = isEditing && activeNoteId > 0L) {
         isEditing = false
+    }
+
+    val onSaveNote = {
+        val saveId = if (activeNoteId > 0L) activeNoteId else 0L
+        viewModel.saveNote(
+            id = saveId,
+            chapterId = chapterId,
+            subjectId = chapter?.subjectId ?: 1L,
+            batchId = chapter?.batchId ?: 1L,
+            title = title.ifBlank { "Untitled Note" },
+            contentMarkdown = contentMarkdown,
+            isFavorite = isFavorite,
+            isPinned = isPinned
+        )
+        if (activeNoteId > 0L) {
+            isEditing = false
+        } else {
+            onBack()
+        }
     }
 
     Scaffold(
@@ -144,7 +177,7 @@ fun NoteEditorScreen(
                 title = {
                     Text(
                         text = if (isEditing) {
-                            if (existingNote != null) "Edit Note" else "New Note"
+                            if (activeNote != null) "Edit Note" else "New Note"
                         } else {
                             title.ifBlank { "Note" }
                         },
@@ -156,7 +189,7 @@ fun NoteEditorScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (isEditing && noteId > 0L) {
+                            if (isEditing && activeNoteId > 0L) {
                                 isEditing = false
                             } else {
                                 onBack()
@@ -164,12 +197,75 @@ fun NoteEditorScreen(
                         }
                     ) {
                         Icon(
-                            imageVector = if (isEditing && noteId > 0L) Icons.Default.Close else Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = if (isEditing && activeNoteId > 0L) Icons.Default.Close else Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
                 },
                 actions = {
+                    // Quick Switcher between notes in this chapter
+                    if (chapterNotes.isNotEmpty()) {
+                        Box {
+                            IconButton(onClick = { showNoteListMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                    contentDescription = "Switch Note (${chapterNotes.size})",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showNoteListMenu,
+                                onDismissRequest = { showNoteListMenu = false }
+                            ) {
+                                Text(
+                                    text = "Chapter Notes (${chapterNotes.size})",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                )
+                                HorizontalDivider()
+                                chapterNotes.forEach { n ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = n.title.ifBlank { "Untitled Note" },
+                                                style = if (n.id == activeNoteId) MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold) else MaterialTheme.typography.bodyMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            if (n.id == activeNoteId) {
+                                                Icon(Icons.Default.Check, contentDescription = "Active", tint = MaterialTheme.colorScheme.primary)
+                                            } else {
+                                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+                                            }
+                                        },
+                                        onClick = {
+                                            activeNoteId = n.id
+                                            isEditing = false
+                                            showNoteListMenu = false
+                                        }
+                                    )
+                                }
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text("+ Create New Note", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
+                                    leadingIcon = { Icon(Icons.Default.Add, contentDescription = "New Note", tint = MaterialTheme.colorScheme.primary) },
+                                    onClick = {
+                                        activeNoteId = -1L
+                                        title = ""
+                                        contentMarkdown = ""
+                                        isFavorite = false
+                                        isPinned = false
+                                        isEditing = true
+                                        showNoteListMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
                     if (isEditing) {
                         IconButton(
                             onClick = {
@@ -184,7 +280,7 @@ fun NoteEditorScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        if (noteId > 0L) {
+                        if (activeNoteId > 0L) {
                             IconButton(onClick = { isEditing = false }) {
                                 Icon(
                                     imageVector = Icons.Default.Visibility,
@@ -193,25 +289,7 @@ fun NoteEditorScreen(
                                 )
                             }
                         }
-                        IconButton(
-                            onClick = {
-                                viewModel.saveNote(
-                                    id = existingNote?.id ?: 0L,
-                                    chapterId = chapterId,
-                                    subjectId = chapter?.subjectId ?: 1L,
-                                    batchId = chapter?.batchId ?: 1L,
-                                    title = title.ifBlank { "Untitled Note" },
-                                    contentMarkdown = contentMarkdown,
-                                    isFavorite = isFavorite,
-                                    isPinned = isPinned
-                                )
-                                if (noteId > 0L) {
-                                    isEditing = false
-                                } else {
-                                    onBack()
-                                }
-                            }
-                        ) {
+                        IconButton(onClick = { onSaveNote() }) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Save Note",
@@ -241,6 +319,15 @@ fun NoteEditorScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
+                        if (activeNoteId > 0L) {
+                            IconButton(onClick = { showDeleteDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete Note",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                         IconButton(onClick = { isEditing = true }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -258,23 +345,7 @@ fun NoteEditorScreen(
         floatingActionButton = {
             if (isEditing) {
                 FloatingActionButton(
-                    onClick = {
-                        viewModel.saveNote(
-                            id = existingNote?.id ?: 0L,
-                            chapterId = chapterId,
-                            subjectId = chapter?.subjectId ?: 1L,
-                            batchId = chapter?.batchId ?: 1L,
-                            title = title.ifBlank { "Untitled Note" },
-                            contentMarkdown = contentMarkdown,
-                            isFavorite = isFavorite,
-                            isPinned = isPinned
-                        )
-                        if (noteId > 0L) {
-                            isEditing = false
-                        } else {
-                            onBack()
-                        }
-                    },
+                    onClick = { onSaveNote() },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
@@ -409,7 +480,7 @@ fun NoteEditorScreen(
                 val newContent = contentMarkdown + insertedContent
                 contentMarkdown = newContent
                 viewModel.saveNote(
-                    id = existingNote?.id ?: 0L,
+                    id = if (activeNoteId > 0L) activeNoteId else 0L,
                     chapterId = chapterId,
                     subjectId = chapter?.subjectId ?: 1L,
                     batchId = chapter?.batchId ?: 1L,
@@ -420,6 +491,30 @@ fun NoteEditorScreen(
                 )
             },
             onDismiss = { showAiDialog = false }
+        )
+    }
+
+    if (showDeleteDialog && activeNote != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Note") },
+            text = { Text("Are you sure you want to delete '${activeNote.title.ifBlank { "this note" }}'?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteNote(activeNote)
+                        onBack()
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

@@ -244,7 +244,7 @@ fun AppNavigation(
                     viewModel = viewModel,
                     onBack = { navController.popBackStack() },
                     onNavigateToChapter = { cId -> navController.navigate(Screen.ChapterDetail.createRoute(cId)) },
-                    onNavigateToNoteEditor = { cId -> navController.navigate(Screen.NoteEditor.createRoute(cId, -1L)) }
+                    onNavigateToNoteEditor = { chId, nId -> navController.navigate(Screen.NoteEditor.createRoute(chId, nId)) }
                 )
             }
 
