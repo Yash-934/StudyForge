@@ -1,5 +1,7 @@
 package com.studyforge.app.ui.screens.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Palette
@@ -71,6 +75,10 @@ import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.viewmodel.StudyViewModel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +105,50 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+
+    // File export/restore launchers
+    val exportJsonFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(exportedJson.toByteArray())
+                }
+                viewModel.showMessage("Backup successfully exported to JSON file!")
+                showBackupExportDialog = false
+            } catch (e: Exception) {
+                viewModel.showMessage("Export failed: ${e.message}")
+            }
+        }
+    }
+
+    val restoreJsonFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val jsonStr = stream.bufferedReader().use { it.readText() }
+                    if (jsonStr.isBlank()) {
+                        viewModel.showMessage("Selected file is empty!")
+                        return@use
+                    }
+                    coroutineScope.launch {
+                        val res = viewModel.restoreFullBackup(jsonStr)
+                        if (res.isSuccess) {
+                            viewModel.showMessage("Database restored successfully from JSON file!")
+                            showRestoreDialog = false
+                        } else {
+                            viewModel.showMessage("Restore failed: ${res.exceptionOrNull()?.message}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                viewModel.showMessage("Failed to read restore file: ${e.message}")
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -406,37 +458,54 @@ fun SettingsScreen(
 
     // Export Dialog
     if (showBackupExportDialog) {
+        val timeStamp = remember { SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date()) }
+        val fileName = "studyforge_backup_$timeStamp.json"
+
         AlertDialog(
             onDismissRequest = { showBackupExportDialog = false },
-            title = { Text("Backup Archive Ready", fontWeight = FontWeight.Bold) },
+            title = { Text("Export Backup JSON Archive", fontWeight = FontWeight.Bold) },
             text = {
-                Column {
-                    Text("Your complete StudyForge data has been serialized to portable JSON. Copy it to your clipboard:")
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Your full database (${exportedJson.length} characters) is serialized. Save it directly as a .json file to bypass clipboard limits:",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     OutlinedTextField(
-                        value = exportedJson.take(200) + "...\n(Total length: ${exportedJson.length} characters)",
+                        value = if (exportedJson.length > 250) exportedJson.take(250) + "\n... [Total: ${exportedJson.length} chars]" else exportedJson,
                         onValueChange = {},
                         readOnly = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
                     )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        clipboardManager.setText(AnnotatedString(exportedJson))
-                        viewModel.showMessage("Backup copied to clipboard!")
-                        showBackupExportDialog = false
+                        exportJsonFileLauncher.launch(fileName)
                     }
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy to Clipboard")
+                    Text("Save JSON File")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showBackupExportDialog = false }) { Text("Close") }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(exportedJson))
+                            viewModel.showMessage("Backup copied to clipboard!")
+                            showBackupExportDialog = false
+                        }
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Copy")
+                    }
+                    TextButton(onClick = { showBackupExportDialog = false }) { Text("Cancel") }
+                }
             }
         )
     }
@@ -447,15 +516,42 @@ fun SettingsScreen(
             onDismissRequest = { showRestoreDialog = false },
             title = { Text("Restore Database Backup", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Paste your exported StudyForge backup JSON below:")
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Select a .json backup file from storage or paste JSON code below:",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Button(
+                        onClick = {
+                            restoreJsonFileLauncher.launch(arrayOf("application/json", "*/*", "text/plain"))
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Select JSON File from Storage")
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f))
+                        Text("OR PASTE JSON", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f))
+                    }
+
                     OutlinedTextField(
                         value = restoreInputJson,
                         onValueChange = { restoreInputJson = it },
-                        placeholder = { Text("Paste JSON here...") },
-                        minLines = 4,
+                        placeholder = { Text("Paste JSON backup code here...") },
+                        minLines = 3,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
                     )
                 }
             },
@@ -464,15 +560,17 @@ fun SettingsScreen(
                     onClick = {
                         coroutineScope.launch {
                             val res = viewModel.restoreFullBackup(restoreInputJson)
-                            if (res.isFailure) {
+                            if (res.isSuccess) {
+                                viewModel.showMessage("Database restored successfully!")
+                                showRestoreDialog = false
+                            } else {
                                 viewModel.showMessage("Restore failed: ${res.exceptionOrNull()?.message}")
                             }
-                            showRestoreDialog = false
                         }
                     },
                     enabled = restoreInputJson.isNotBlank()
                 ) {
-                    Text("Restore Now")
+                    Text("Restore Pasted JSON")
                 }
             },
             dismissButton = {

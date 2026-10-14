@@ -93,23 +93,32 @@ fun ImportBulkQuestionBankDialog(
     var isImporting by remember { mutableStateOf(false) }
     var showChapterPreview by remember { mutableStateOf(true) }
 
-    // Target Selection: initialize with preselected or first available
+    // Target Selection: initialize with preselected or 0L (auto-match/create)
     var selectedBatchId by remember(preselectedBatchId) {
-        mutableStateOf(
-            preselectedBatchId ?: batches.firstOrNull()?.id ?: 0L
-        )
+        mutableStateOf(preselectedBatchId ?: 0L)
     }
-    var selectedSubjectId by remember(preselectedSubjectId, selectedBatchId) {
-        mutableStateOf(
-            preselectedSubjectId ?: subjects.firstOrNull { it.batchId == selectedBatchId }?.id ?: 0L
-        )
+    var userManuallySelectedBatch by remember(preselectedBatchId) {
+        mutableStateOf(preselectedBatchId != null && preselectedBatchId > 0L)
     }
 
-    LaunchedEffect(batches, preselectedBatchId) {
-        if (preselectedBatchId != null && preselectedBatchId > 0L) {
-            selectedBatchId = preselectedBatchId
-        } else if (selectedBatchId == 0L && batches.isNotEmpty()) {
-            selectedBatchId = batches.first().id
+    var selectedSubjectId by remember(preselectedSubjectId) {
+        mutableStateOf(preselectedSubjectId ?: 0L)
+    }
+
+    // When validationResult changes, if user hasn't explicitly picked a batch, auto-match or set 0L (auto-create)
+    LaunchedEffect(validationResult, batches) {
+        if (!userManuallySelectedBatch) {
+            val jsonBatchName = validationResult?.batchName?.trim()
+            if (!jsonBatchName.isNullOrBlank()) {
+                val matched = batches.find { it.name.equals(jsonBatchName, ignoreCase = true) }
+                if (matched != null) {
+                    selectedBatchId = matched.id
+                } else {
+                    selectedBatchId = 0L
+                }
+            } else if (preselectedBatchId != null && preselectedBatchId > 0L) {
+                selectedBatchId = preselectedBatchId
+            }
         }
     }
 
@@ -276,6 +285,7 @@ fun ImportBulkQuestionBankDialog(
                                         onClick = {
                                             selectedBatchId = 0L
                                             selectedSubjectId = 0L
+                                            userManuallySelectedBatch = true
                                             batchDropdownExpanded = false
                                         }
                                     )
@@ -286,6 +296,7 @@ fun ImportBulkQuestionBankDialog(
                                                 selectedBatchId = b.id
                                                 val batchSubs = subjects.filter { it.batchId == b.id }
                                                 selectedSubjectId = batchSubs.firstOrNull()?.id ?: 0L
+                                                userManuallySelectedBatch = true
                                                 batchDropdownExpanded = false
                                             }
                                         )

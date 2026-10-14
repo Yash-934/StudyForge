@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -548,7 +549,10 @@ fun BlockMathCard(
 }
 
 /**
- * Pre-parsed Table Card for 0ms layout time.
+ * Responsive Pre-parsed Table Card designed for mobile screens:
+ * - Automatically computes content density per column to eliminate awkward whitespace gaps.
+ * - Fits compact 1-4 column tables proportionally without artificial oversized gaps.
+ * - Enables smooth, pixel-aligned horizontal scrolling for wide/data-dense tables.
  */
 @Composable
 fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
@@ -556,109 +560,155 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
     val alignments = table.alignments
     val rows = table.rows
     val numCols = headers.size
-    val isAutoFit = numCols in 1..3
+    if (numCols == 0) return
 
-    fun getColWeight(cIdx: Int): Float = when (numCols) {
-        1 -> 1.0f
-        2 -> if (cIdx == 0) 0.38f else 0.62f
-        3 -> if (cIdx == 0) 0.28f else 0.36f
-        else -> 1.0f / numCols
+    // Calculate max character length per column across headers and rows
+    val colMaxChars = remember(headers, rows) {
+        (0 until numCols).map { cIdx ->
+            val hLen = headers.getOrNull(cIdx)?.text?.length ?: 3
+            val rMax = rows.maxOfOrNull { r -> r.getOrNull(cIdx)?.text?.length ?: 0 } ?: 0
+            maxOf(hLen, rMax, 2)
+        }
     }
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        val tableModifier = if (isAutoFit) {
-            Modifier.fillMaxWidth()
-        } else {
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
+        val availableWidth = maxWidth
+        // Calculate intrinsic preferred width per column based on text length (~7.2dp per char + 16dp cell padding)
+        val intrinsicColWidths = remember(colMaxChars, availableWidth) {
+            colMaxChars.map { chars ->
+                (chars * 7.2f + 18f).dp.coerceIn(46.dp, 220.dp)
+            }
         }
+        val totalIntrinsicWidth = intrinsicColWidths.fold(0.dp) { acc, d -> acc + d }
+        val needsScroll = totalIntrinsicWidth > (availableWidth - 16.dp) || numCols > 4
 
-        Box(modifier = tableModifier) {
-            Column(
-                modifier = Modifier
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+        ) {
+            val tableModifier = if (needsScroll) {
+                Modifier
                     .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                // Header Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
-                        .padding(vertical = 8.dp, horizontal = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    .horizontalScroll(rememberScrollState())
+            } else {
+                Modifier.fillMaxWidth()
+            }
+
+            Box(modifier = tableModifier) {
+                Column(
+                    modifier = if (needsScroll) {
+                        Modifier.padding(6.dp)
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(6.dp)
+                    }
                 ) {
-                    headers.forEachIndexed { idx, headerText ->
-                        val align = alignments.getOrElse(idx) { TextAlign.Start }
-                        val cellModifier = if (isAutoFit) {
+                    // Header Row
+                    Row(
+                        modifier = if (needsScroll) {
                             Modifier
-                                .weight(getColWeight(idx))
-                                .padding(horizontal = 6.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+                                .padding(vertical = 7.dp, horizontal = 4.dp)
                         } else {
                             Modifier
-                                .widthIn(min = 90.dp, max = 200.dp)
-                                .padding(horizontal = 6.dp)
-                        }
-                        Box(modifier = cellModifier) {
-                            Text(
-                                text = headerText,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 13.5.sp),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                textAlign = align,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Data Rows
-                rows.forEachIndexed { rIdx, rowCells ->
-                    val rowBg = if (rIdx % 2 == 0) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(rowBg)
-                            .padding(vertical = 7.dp, horizontal = 6.dp),
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+                                .padding(vertical = 7.dp, horizontal = 4.dp)
+                        },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        headers.indices.forEach { cIdx ->
-                            val cellAnnotated = rowCells.getOrElse(cIdx) { AnnotatedString("") }
-                            val align = alignments.getOrElse(cIdx) { TextAlign.Start }
-                            val cellModifier = if (isAutoFit) {
+                        headers.forEachIndexed { idx, headerText ->
+                            val align = alignments.getOrElse(idx) { TextAlign.Start }
+                            val cellModifier = if (needsScroll) {
                                 Modifier
-                                    .weight(getColWeight(cIdx))
-                                    .padding(horizontal = 6.dp)
+                                    .width(intrinsicColWidths[idx])
+                                    .padding(horizontal = 4.dp)
                             } else {
+                                // Content-proportional weight eliminates huge awkward voids
+                                val totalChars = colMaxChars.sum().toFloat().coerceAtLeast(1f)
+                                val weight = (colMaxChars[idx].toFloat() / totalChars).coerceIn(0.12f, 0.75f)
                                 Modifier
-                                    .widthIn(min = 90.dp, max = 200.dp)
-                                    .padding(horizontal = 6.dp)
+                                    .weight(weight)
+                                    .padding(horizontal = 4.dp)
                             }
                             Box(modifier = cellModifier) {
                                 Text(
-                                    text = cellAnnotated,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    text = headerText,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.5.sp,
+                                        lineHeight = 16.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     textAlign = align,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
                     }
-                    if (rIdx < rows.lastIndex) {
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            thickness = 0.5.dp
-                        )
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    // Data Rows
+                    rows.forEachIndexed { rIdx, rowCells ->
+                        val rowBg = if (rIdx % 2 == 0) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                        Row(
+                            modifier = if (needsScroll) {
+                                Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(rowBg)
+                                    .padding(vertical = 6.dp, horizontal = 4.dp)
+                            } else {
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(rowBg)
+                                    .padding(vertical = 6.dp, horizontal = 4.dp)
+                            },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            headers.indices.forEach { cIdx ->
+                                val cellAnnotated = rowCells.getOrElse(cIdx) { AnnotatedString("") }
+                                val align = alignments.getOrElse(cIdx) { TextAlign.Start }
+                                val cellModifier = if (needsScroll) {
+                                    Modifier
+                                        .width(intrinsicColWidths[cIdx])
+                                        .padding(horizontal = 4.dp)
+                                } else {
+                                    val totalChars = colMaxChars.sum().toFloat().coerceAtLeast(1f)
+                                    val weight = (colMaxChars[cIdx].toFloat() / totalChars).coerceIn(0.12f, 0.75f)
+                                    Modifier
+                                        .weight(weight)
+                                        .padding(horizontal = 4.dp)
+                                }
+                                Box(modifier = cellModifier) {
+                                    Text(
+                                        text = cellAnnotated,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontSize = 12.sp,
+                                            lineHeight = 16.sp
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        textAlign = align,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+                        if (rIdx < rows.lastIndex) {
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+                                thickness = 0.5.dp
+                            )
+                        }
                     }
                 }
             }
