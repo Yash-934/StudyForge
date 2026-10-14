@@ -164,7 +164,8 @@ fun MistakeBookScreen(
                         label = { Text("Personal Reflection Note") },
                         placeholder = { Text("e.g. Forgot the chain rule factor of 2 inside the sine derivative.") },
                         minLines = 3,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },

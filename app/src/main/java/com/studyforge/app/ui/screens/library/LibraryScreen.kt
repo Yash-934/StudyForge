@@ -672,7 +672,8 @@ fun CreateBatchDialog(
                     label = { Text("Batch Name *") },
                     placeholder = { Text("e.g. Engineering Prep 2026") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 OutlinedTextField(
                     value = course,
@@ -680,7 +681,8 @@ fun CreateBatchDialog(
                     label = { Text("Class / Course") },
                     placeholder = { Text("e.g. Undergrad / IIT-JEE / MCAT") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 OutlinedTextField(
                     value = session,
@@ -688,7 +690,8 @@ fun CreateBatchDialog(
                     label = { Text("Session / Year") },
                     placeholder = { Text("e.g. 2026-2027") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 OutlinedTextField(
                     value = goal,
@@ -696,7 +699,8 @@ fun CreateBatchDialog(
                     label = { Text("Primary Goal") },
                     placeholder = { Text("e.g. Score > 95% in Calculus & Physics") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
         },
@@ -737,7 +741,8 @@ fun CreateSubjectDialog(
                     label = { Text("Subject Name *") },
                     placeholder = { Text("e.g. Mathematics, Physics, Organic Chem") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 Text("Theme Color", style = MaterialTheme.typography.labelMedium)

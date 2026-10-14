@@ -434,7 +434,8 @@ fun AddScheduleDialog(
                     label = { Text("Subject *") },
                     placeholder = { Text("e.g. Mathematics") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 OutlinedTextField(
@@ -443,7 +444,8 @@ fun AddScheduleDialog(
                     label = { Text("Task / Focus *") },
                     placeholder = { Text("e.g. Practice questions & notes") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 Text("Day of Week:", style = MaterialTheme.typography.labelSmall)
@@ -468,14 +470,18 @@ fun AddScheduleDialog(
                         onValueChange = { startTime = it },
                         label = { Text("Start Time") },
                         placeholder = { Text("09:00") },
-                        modifier = Modifier.weight(1f)
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     OutlinedTextField(
                         value = endTime,
                         onValueChange = { endTime = it },
                         label = { Text("End Time") },
                         placeholder = { Text("10:30") },
-                        modifier = Modifier.weight(1f)
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
 

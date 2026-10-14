@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -89,6 +90,7 @@ fun HomeScreen(
     onNavigateToMistakes: (Long) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToPractice: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val analytics by viewModel.analytics.collectAsState()
@@ -142,19 +144,19 @@ fun HomeScreen(
                     Surface(
                         shape = RoundedCornerShape(20.dp),
                         color = WarningYellow.copy(alpha = 0.15f),
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 6.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.LocalFireDepartment,
                                 contentDescription = "Streak",
                                 tint = WarningYellow,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "${analytics.currentStreakDays}d streak",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
@@ -167,6 +169,14 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }

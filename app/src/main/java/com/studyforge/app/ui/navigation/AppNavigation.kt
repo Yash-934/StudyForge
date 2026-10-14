@@ -1,10 +1,26 @@
 package com.studyforge.app.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
@@ -17,9 +33,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -94,84 +109,84 @@ fun AppNavigation(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (shouldShowBottomBar) {
-                NavigationBar(
+                Surface(
                     tonalElevation = 3.dp,
+                    shadowElevation = 6.dp,
+                    color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
+                    Column(modifier = Modifier.navigationBarsPadding()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val items = listOf(
+                                Triple(Screen.Home.route, Icons.Default.Home, "Home"),
+                                Triple(Screen.Practice.route, Icons.Default.PlayCircle, "Practice"),
+                                Triple(Screen.Library.route, Icons.Default.Folder, "Library"),
+                                Triple(Screen.Analytics.route, Icons.Default.QueryStats, "Stats"),
+                                Triple(Screen.Planner.route, Icons.Default.CalendarMonth, "Planner"),
+                                Triple(Screen.Settings.route, Icons.Default.Settings, "Settings")
+                            )
 
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Home.route,
-                        onClick = {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            items.forEach { (route, icon, label) ->
+                                val selected = currentRoute == route
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable {
+                                            navController.navigate(route) {
+                                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(42.dp)
+                                                .height(26.dp)
+                                                .clip(RoundedCornerShape(13.dp))
+                                                .background(
+                                                    if (selected) MaterialTheme.colorScheme.primaryContainer
+                                                    else Color.Transparent
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = icon,
+                                                contentDescription = label,
+                                                modifier = Modifier.size(19.dp),
+                                                tint = if (selected) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 10.sp,
+                                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                            ),
+                                            color = if (selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
+                                }
                             }
-                        },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home", maxLines = 1, softWrap = false, style = labelStyle) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Practice.route,
-                        onClick = {
-                            navController.navigate(Screen.Practice.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.PlayCircle, contentDescription = "Practice") },
-                        label = { Text("Practice", maxLines = 1, softWrap = false, style = labelStyle) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Library.route,
-                        onClick = {
-                            navController.navigate(Screen.Library.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.Folder, contentDescription = "Library") },
-                        label = { Text("Library", maxLines = 1, softWrap = false, style = labelStyle) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Analytics.route,
-                        onClick = {
-                            navController.navigate(Screen.Analytics.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.QueryStats, contentDescription = "Stats") },
-                        label = { Text("Stats", maxLines = 1, softWrap = false, style = labelStyle) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Planner.route,
-                        onClick = {
-                            navController.navigate(Screen.Planner.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Planner") },
-                        label = { Text("Planner", maxLines = 1, softWrap = false, style = labelStyle) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Settings.route,
-                        onClick = {
-                            navController.navigate(Screen.Settings.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings", maxLines = 1, softWrap = false, style = labelStyle) }
-                    )
+                        }
+                    }
                 }
             }
         }
@@ -199,7 +214,8 @@ fun AppNavigation(
                     onNavigateToRevision = { navController.navigate(Screen.RevisionQueue.route) },
                     onNavigateToMistakes = { cId -> navController.navigate(Screen.MistakeBook.createRoute(cId)) },
                     onNavigateToSearch = { navController.navigate(Screen.GlobalSearch.route) },
-                    onNavigateToPractice = { navController.navigate(Screen.Practice.route) }
+                    onNavigateToPractice = { navController.navigate(Screen.Practice.route) },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                 )
             }
 

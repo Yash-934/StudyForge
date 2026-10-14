@@ -708,7 +708,8 @@ fun CreateChapterDialog(
                 label = { Text("Chapter Name *") },
                 placeholder = { Text("e.g. Integration, Thermodynamics, Organic Reactions") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             )
         },
         confirmButton = {

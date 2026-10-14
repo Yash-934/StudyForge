@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -191,7 +192,8 @@ fun QuestionEditorScreen(
                     onBack()
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.navigationBarsPadding()
             ) {
                 Icon(imageVector = Icons.Default.Check, contentDescription = "Save Question")
             }
@@ -292,7 +294,7 @@ fun QuestionEditorScreen(
                                 onValueChange = { newVal -> options[idx] = newVal },
                                 label = { Text("Option ${('A' + idx)}") },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(12.dp)
                             )
                             IconButton(onClick = {
                                 if (options.size > 2) {
@@ -399,14 +401,14 @@ fun QuestionEditorScreen(
                     onValueChange = { marks = it.toDoubleOrNull() ?: 1.0 },
                     label = { Text("Marks") },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 )
                 OutlinedTextField(
                     value = negativeMarks.toString(),
                     onValueChange = { negativeMarks = it.toDoubleOrNull() ?: 0.0 },
                     label = { Text("Negative Marks") },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
 
@@ -433,7 +435,7 @@ fun QuestionEditorScreen(
                 placeholder = { Text("e.g. Integration by Substitution") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             )
 
             // Hint
@@ -443,7 +445,7 @@ fun QuestionEditorScreen(
                 label = { Text("Hint (optional)") },
                 placeholder = { Text("e.g. Try substituting u = x^2 + 1") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             )
 
             // Explanation & Solution
@@ -454,7 +456,7 @@ fun QuestionEditorScreen(
                 placeholder = { Text("Brief reason why this answer is correct...") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             )
 
             OutlinedTextField(
@@ -464,10 +466,10 @@ fun QuestionEditorScreen(
                 placeholder = { Text("Full step-by-step derivation...") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(72.dp))
+            Spacer(modifier = Modifier.navigationBarsPadding().height(80.dp))
         }
     }
 }

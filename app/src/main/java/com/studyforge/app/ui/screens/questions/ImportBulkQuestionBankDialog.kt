@@ -325,33 +325,33 @@ fun ImportBulkQuestionBankDialog(
                         },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Paste", style = MaterialTheme.typography.bodySmall)
+                        Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Paste", style = MaterialTheme.typography.bodySmall, maxLines = 1, softWrap = false)
                     }
 
                     OutlinedButton(
                         onClick = { filePicker.launch("application/json") },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("File", style = MaterialTheme.typography.bodySmall)
+                        Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("File", style = MaterialTheme.typography.bodySmall, maxLines = 1, softWrap = false)
                     }
 
                     OutlinedButton(
                         onClick = { jsonText = "" },
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(0.8f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Clear", style = MaterialTheme.typography.bodySmall)
+                        Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Clear", style = MaterialTheme.typography.bodySmall, maxLines = 1, softWrap = false)
                     }
                 }
 

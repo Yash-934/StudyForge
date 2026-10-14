@@ -320,7 +320,8 @@ fun AddFormulaDialog(
                     label = { Text("Formula Name *") },
                     placeholder = { Text("e.g. Integration by Parts") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 OutlinedTextField(
@@ -328,7 +329,8 @@ fun AddFormulaDialog(
                     onValueChange = { latex = it },
                     label = { Text("LaTeX Equation *") },
                     placeholder = { Text("e.g. \\Delta W_B = \\int_a^b f(x) dx") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 if (latex.isNotBlank()) {
@@ -341,7 +343,8 @@ fun AddFormulaDialog(
                     onValueChange = { explanation = it },
                     label = { Text("Conditions / Explanation") },
                     placeholder = { Text("e.g. Use LIATE rule for choosing u.") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
         },

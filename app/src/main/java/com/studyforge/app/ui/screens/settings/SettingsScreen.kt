@@ -417,7 +417,8 @@ fun SettingsScreen(
                         value = exportedJson.take(200) + "...\n(Total length: ${exportedJson.length} characters)",
                         onValueChange = {},
                         readOnly = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },
@@ -453,7 +454,8 @@ fun SettingsScreen(
                         onValueChange = { restoreInputJson = it },
                         placeholder = { Text("Paste JSON here...") },
                         minLines = 4,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },

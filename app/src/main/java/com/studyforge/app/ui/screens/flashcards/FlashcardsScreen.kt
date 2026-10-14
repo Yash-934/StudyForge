@@ -270,7 +270,8 @@ fun AddFlashcardDialog(
                     label = { Text("Front (Prompt / Question / Term) *") },
                     placeholder = { Text("e.g. State the LIATE rule") },
                     minLines = 2,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 OutlinedTextField(
                     value = back,
@@ -278,7 +279,8 @@ fun AddFlashcardDialog(
                     label = { Text("Back (Answer / Definition / Formula) *") },
                     placeholder = { Text("Logarithmic, Inverse trig, Algebraic...") },
                     minLines = 3,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
         },

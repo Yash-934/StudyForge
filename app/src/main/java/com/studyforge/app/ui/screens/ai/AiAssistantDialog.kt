@@ -131,7 +131,7 @@ fun AiAssistantDialog(
                         label = { Text("Concept to Explain") },
                         placeholder = { Text("e.g. Z-Score, Cointegration, ADF Test") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
 

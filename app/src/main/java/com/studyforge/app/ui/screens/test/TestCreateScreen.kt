@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -95,7 +96,8 @@ fun TestCreateScreen(
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.navigationBarsPadding()
             ) {
                 Icon(imageVector = Icons.Default.Check, contentDescription = "Create Test")
             }
@@ -220,7 +222,7 @@ fun TestCreateScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(72.dp)) }
+            item { Spacer(modifier = Modifier.navigationBarsPadding().height(80.dp)) }
         }
     }
 }
