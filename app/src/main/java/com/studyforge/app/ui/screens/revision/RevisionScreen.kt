@@ -59,7 +59,14 @@ fun RevisionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Spaced Revision Queue", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Spaced Revision Queue",
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

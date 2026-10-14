@@ -35,6 +35,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
@@ -43,6 +45,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -62,7 +65,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.ButtonDefaults
@@ -111,6 +113,9 @@ fun SubjectDetailScreen(
     var chapterActionTarget by remember { mutableStateOf<ChapterEntity?>(null) }
     var chapterToEdit by remember { mutableStateOf<ChapterEntity?>(null) }
     var chapterToDelete by remember { mutableStateOf<ChapterEntity?>(null) }
+    var showSubjectMenu by remember { mutableStateOf(false) }
+    var showEditSubjectDialog by remember { mutableStateOf(false) }
+    var showDeleteSubjectDialog by remember { mutableStateOf(false) }
 
     val accent = try {
         Color(android.graphics.Color.parseColor(subject?.colorHex ?: "#4F46E5"))
@@ -135,15 +140,46 @@ fun SubjectDetailScreen(
                     }
                 },
                 actions = {
-                    FilledTonalButton(
-                        onClick = { showBulkQuestionBankDialog = true },
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.padding(end = 4.dp)
-                    ) {
-                        Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Import Questions", style = MaterialTheme.typography.labelSmall)
+                    IconButton(onClick = { showBulkQuestionBankDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Quiz,
+                            contentDescription = "Import Q-Bank",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Box {
+                        IconButton(onClick = { showSubjectMenu = true }) {
+                            Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Subject Options")
+                        }
+                        DropdownMenu(
+                            expanded = showSubjectMenu,
+                            onDismissRequest = { showSubjectMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Import Q-Bank (JSON)") },
+                                leadingIcon = { Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                onClick = {
+                                    showSubjectMenu = false
+                                    showBulkQuestionBankDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Edit Subject") },
+                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                onClick = {
+                                    showSubjectMenu = false
+                                    showEditSubjectDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete Subject", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                                onClick = {
+                                    showSubjectMenu = false
+                                    showDeleteSubjectDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -187,9 +223,11 @@ fun SubjectDetailScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "${subject?.name} Mastery",
+                            text = "${subject?.name ?: "Subject"} Mastery",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         MasteryProgressBar(score = subjectMastery)
@@ -583,6 +621,30 @@ fun SubjectDetailScreen(
             }
         )
     }
+
+    if (showEditSubjectDialog && subject != null) {
+        com.studyforge.app.ui.screens.library.EditSubjectDialog(
+            subject = subject,
+            onDismiss = { showEditSubjectDialog = false },
+            onConfirm = { newName, newColor ->
+                viewModel.updateSubject(subject.copy(name = newName, colorHex = newColor))
+                showEditSubjectDialog = false
+            }
+        )
+    }
+
+    if (showDeleteSubjectDialog && subject != null) {
+        com.studyforge.app.ui.components.ConfirmDeleteDialog(
+            title = "Delete Subject '${subject.name}'?",
+            message = "This will permanently remove this subject and all its chapters, notes, questions, and tests.",
+            onConfirm = {
+                viewModel.deleteSubject(subject)
+                showDeleteSubjectDialog = false
+                onBack()
+            },
+            onDismiss = { showDeleteSubjectDialog = false }
+        )
+    }
 }
 
 @Composable
@@ -605,9 +667,7 @@ fun ChapterCardRow(
                 Text(
                     text = chap.name,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 MasteryProgressBar(score = chap.masteryScore)

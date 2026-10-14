@@ -95,7 +95,14 @@ fun TestResultScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Scorecard", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Scorecard",
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onFinish) {
                         Icon(imageVector = Icons.Default.Close, contentDescription = "Close")

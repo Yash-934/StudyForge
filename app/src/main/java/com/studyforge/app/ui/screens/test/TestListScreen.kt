@@ -86,10 +86,21 @@ fun TestListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Tests & Mock Exams", fontWeight = FontWeight.Bold)
+                    Column(modifier = Modifier.padding(end = 4.dp)) {
+                        Text(
+                            text = "Tests & Mock Exams",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
                         if (chapter != null) {
-                            Text(chapter.name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                text = chapter.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
                         }
                     }
                 },

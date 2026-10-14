@@ -132,10 +132,21 @@ fun QuestionBankScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Question Bank", fontWeight = FontWeight.Bold)
+                    Column(modifier = Modifier.padding(end = 4.dp)) {
+                        Text(
+                            text = "Question Bank",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
                         if (chapter != null) {
-                            Text(chapter.name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                text = chapter.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
                         }
                     }
                 },
@@ -145,15 +156,12 @@ fun QuestionBankScreen(
                     }
                 },
                 actions = {
-                    FilledTonalButton(
-                        onClick = { showBulkImportDialog = true },
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                        modifier = Modifier.padding(end = 4.dp)
-                    ) {
-                        Icon(Icons.Default.Layers, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Bulk Import All Chapters", style = MaterialTheme.typography.labelSmall)
+                    IconButton(onClick = { showBulkImportDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Layers,
+                            contentDescription = "Bulk Import",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                     IconButton(onClick = onNavigateToJsonImport) {
                         Icon(

@@ -234,7 +234,9 @@ fun HeroLearningCard(
                         letterSpacing = (-0.3).sp,
                         fontSize = 24.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 if (subtitle != null) {
@@ -245,7 +247,9 @@ fun HeroLearningCard(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Normal
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -337,7 +341,10 @@ fun StatCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false).padding(end = 4.dp)
                 )
                 SquircleIconBadge(
                     icon = icon,
@@ -502,7 +509,7 @@ fun SectionHeader(
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false)
+            modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp)
         )
         if (actionText != null && onActionClick != null) {
             TextButton(onClick = onActionClick) {

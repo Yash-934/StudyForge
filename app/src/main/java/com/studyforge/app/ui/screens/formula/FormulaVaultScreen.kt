@@ -98,7 +98,9 @@ fun FormulaVaultScreen(
                 title = {
                     Text(
                         text = if (isRevisionMode) "Formula Revision Drill" else "Formula Vault",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 },
                 navigationIcon = {

@@ -114,7 +114,14 @@ fun PlannerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Study Planner & Journal", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Study Planner & Journal",
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
