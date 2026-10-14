@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -64,7 +66,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import com.studyforge.app.data.local.entities.BatchEntity
+import com.studyforge.app.data.local.entities.SubjectEntity
 import com.studyforge.app.ui.components.ConfirmDeleteDialog
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MasteryProgressBar
@@ -91,6 +96,8 @@ fun LibraryScreen(
     var importTargetBatchId by remember { mutableStateOf<Long?>(null) }
     var batchToDelete by remember { mutableStateOf<BatchEntity?>(null) }
     var batchToRename by remember { mutableStateOf<BatchEntity?>(null) }
+    var subjectToEdit by remember { mutableStateOf<SubjectEntity?>(null) }
+    var subjectToDelete by remember { mutableStateOf<SubjectEntity?>(null) }
 
     val filteredBatches = remember(batches, searchQuery) {
         if (searchQuery.isBlank()) batches else batches.filter {
@@ -123,46 +130,56 @@ fun LibraryScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = "Library",
                             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Batches • Subjects • Chapters Knowledge Base",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         FilledTonalButton(
                             onClick = {
                                 importTargetBatchId = null
                                 showImportBulkQBankDialog = true
                             },
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("All Q-Bank", style = MaterialTheme.typography.labelSmall)
+                            Text("All Q-Bank", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
+
                         FilledTonalButton(
                             onClick = {
                                 importTargetBatchId = null
                                 showImportCurriculumDialog = true
                             },
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Curriculum", style = MaterialTheme.typography.labelSmall)
+                            Text("Curriculum", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -248,10 +265,11 @@ fun LibraryScreen(
                                 batchSubjects.forEach { sub ->
                                     val subChapters = chapters.filter { it.subjectId == sub.id }
                                     SubjectRowItem(
-                                        subjectName = sub.name,
-                                        colorHex = sub.colorHex,
+                                        subject = sub,
                                         chapterCount = subChapters.size,
-                                        onClick = { onNavigateToSubject(sub.id) }
+                                        onClick = { onNavigateToSubject(sub.id) },
+                                        onEditSubject = { subjectToEdit = sub },
+                                        onDeleteSubject = { subjectToDelete = sub }
                                     )
                                 }
                             }
@@ -313,6 +331,31 @@ fun LibraryScreen(
                 )
                 batchToRename = null
             }
+        )
+    }
+
+    // Edit Subject Dialog
+    subjectToEdit?.let { sub ->
+        EditSubjectDialog(
+            subject = sub,
+            onDismiss = { subjectToEdit = null },
+            onConfirm = { newName, newColor ->
+                viewModel.updateSubject(sub.copy(name = newName, colorHex = newColor))
+                subjectToEdit = null
+            }
+        )
+    }
+
+    // Delete Subject Dialog
+    subjectToDelete?.let { sub ->
+        ConfirmDeleteDialog(
+            title = "Delete Subject '${sub.name}'?",
+            message = "This will permanently remove this subject and all its chapters, notes, and questions.",
+            onConfirm = {
+                viewModel.deleteSubject(sub)
+                subjectToDelete = null
+            },
+            onDismiss = { subjectToDelete = null }
         )
     }
 
@@ -473,15 +516,18 @@ fun BatchCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SubjectRowItem(
-    subjectName: String,
-    colorHex: String,
+    subject: SubjectEntity,
     chapterCount: Int,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onEditSubject: () -> Unit,
+    onDeleteSubject: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     val accent = try {
-        Color(android.graphics.Color.parseColor(colorHex))
+        Color(android.graphics.Color.parseColor(subject.colorHex))
     } catch (e: Exception) {
         MaterialTheme.colorScheme.primary
     }
@@ -492,49 +538,105 @@ fun SubjectRowItem(
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clip(RoundedCornerShape(14.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { menuExpanded = true }
+            )
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(accent)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = subjectName,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "$chapterCount chapters",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
-                    contentAlignment = Alignment.Center
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = true)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(accent)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = subject.name,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = "$chapterCount chapters",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Subject Options",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                            .clickable { onClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "View Subject",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Edit Subject") },
+                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        onEditSubject()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete Subject", color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        menuExpanded = false
+                        onDeleteSubject()
+                    }
+                )
             }
         }
     }
@@ -715,6 +817,70 @@ fun RenameBatchDialog(
                 onClick = {
                     if (name.isNotBlank()) onConfirm(name.trim(), course.trim(), session.trim())
                 },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+fun EditSubjectDialog(
+    subject: SubjectEntity,
+    onDismiss: () -> Unit,
+    onConfirm: (newName: String, newColorHex: String) -> Unit
+) {
+    var name by remember { mutableStateOf(subject.name) }
+    var selectedColor by remember { mutableStateOf(subject.colorHex) }
+
+    val colors = listOf("#4F46E5", "#0284C7", "#059669", "#D97706", "#DC2626", "#7C3AED", "#EC4899", "#2563EB")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Subject Name", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Subject Name *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Text("Theme Color", style = MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    colors.forEach { hex ->
+                        val col = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color.Gray }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(col)
+                                .clickable { selectedColor = hex }
+                        ) {
+                            if (selectedColor.equals(hex, ignoreCase = true)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .align(Alignment.Center)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { if (name.isNotBlank()) onConfirm(name.trim(), selectedColor) },
                 enabled = name.isNotBlank()
             ) {
                 Text("Save")

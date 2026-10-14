@@ -234,6 +234,13 @@ class StudyViewModel(
         }
     }
 
+    fun updateSubject(subject: SubjectEntity) {
+        viewModelScope.launch {
+            repository.updateSubject(subject)
+            showMessage("Subject updated: ${subject.name}")
+        }
+    }
+
     fun deleteSubject(subject: SubjectEntity) {
         viewModelScope.launch {
             repository.deleteSubject(subject)

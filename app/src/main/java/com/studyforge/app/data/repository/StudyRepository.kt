@@ -486,27 +486,56 @@ class StudyRepository(private val db: AppDatabase) {
         var formulasCount = 0
         var questionsCount = 0
 
+        val existingSubjectsInBatch = db.subjectDao().getSubjectsForBatch(resolvedBatchId).first().toMutableList()
+        val existingChaptersInBatch = db.chapterDao().getAllChapters().first().filter { it.batchId == resolvedBatchId }.toMutableList()
+
         for (subDto in curriculum.subjects) {
-            val subjectId = insertSubject(
-                SubjectEntity(
+            val trimmedSubName = subDto.name.trim()
+            val existingSub = existingSubjectsInBatch.find { 
+                it.name.trim().equals(trimmedSubName, ignoreCase = true) ||
+                (it.name.trim().length >= 4 && trimmedSubName.length >= 4 &&
+                    (it.name.trim().lowercase().startsWith(trimmedSubName.lowercase()) || trimmedSubName.lowercase().startsWith(it.name.trim().lowercase())))
+            }
+
+            val subjectId: Long = if (existingSub != null) {
+                existingSub.id
+            } else {
+                val newSub = SubjectEntity(
                     batchId = resolvedBatchId,
-                    name = subDto.name,
+                    name = trimmedSubName,
                     iconName = subDto.iconName,
                     colorHex = subDto.colorHex
                 )
-            )
-            subjectsCount++
+                val newSubId = insertSubject(newSub)
+                existingSubjectsInBatch.add(newSub.copy(id = newSubId))
+                subjectsCount++
+                newSubId
+            }
 
             for (chapDto in subDto.chapters) {
-                val chapterId = insertChapter(
-                    ChapterEntity(
+                val trimmedChapName = chapDto.name.trim()
+                val existingChap = existingChaptersInBatch.find { c ->
+                    c.subjectId == subjectId && (
+                        c.name.trim().equals(trimmedChapName, ignoreCase = true) ||
+                        c.name.trim().lowercase().removePrefix("chapter ").trimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ', '-')
+                            .equals(trimmedChapName.lowercase().removePrefix("chapter ").trimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ', '-'), ignoreCase = true)
+                    )
+                }
+
+                val chapterId: Long = if (existingChap != null) {
+                    existingChap.id
+                } else {
+                    val newChap = ChapterEntity(
                         subjectId = subjectId,
                         batchId = resolvedBatchId,
-                        name = chapDto.name,
+                        name = trimmedChapName,
                         orderIndex = chapDto.orderIndex
                     )
-                )
-                chaptersCount++
+                    val newChapId = insertChapter(newChap)
+                    existingChaptersInBatch.add(newChap.copy(id = newChapId))
+                    chaptersCount++
+                    newChapId
+                }
 
                 for (noteDto in chapDto.notes) {
                     insertNote(
@@ -609,9 +638,15 @@ class StudyRepository(private val db: AppDatabase) {
             val subjectId: Long = when {
                 targetSubName != null -> {
                     subjectCache.getOrPut(targetSubName.lowercase()) {
-                        val found = existingSubjects.find { it.name.equals(targetSubName, ignoreCase = true) }
+                        val found = existingSubjects.find { 
+                            it.name.trim().equals(targetSubName, ignoreCase = true) ||
+                            (it.name.trim().length >= 4 && targetSubName.length >= 4 &&
+                                (it.name.trim().lowercase().startsWith(targetSubName.lowercase()) || targetSubName.lowercase().startsWith(it.name.trim().lowercase())))
+                        }
                         if (found != null) {
                             found.id
+                        } else if (fallbackSubjectId != null && fallbackSubjectId > 0L) {
+                            fallbackSubjectId
                         } else {
                             val newSub = SubjectEntity(
                                 batchId = resolvedBatchId,
