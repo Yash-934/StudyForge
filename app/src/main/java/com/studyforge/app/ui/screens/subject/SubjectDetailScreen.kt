@@ -23,6 +23,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
@@ -62,6 +64,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.ButtonDefaults
+import com.studyforge.app.data.local.entities.ChapterEntity
 import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.MasteryProgressBar
@@ -103,6 +107,9 @@ fun SubjectDetailScreen(
     val tabs = listOf("Overview", "Chapters", "Notes", "Questions", "Tests")
     var showCreateChapterDialog by remember { mutableStateOf(false) }
     var showBulkQuestionBankDialog by remember { mutableStateOf(false) }
+    var chapterActionTarget by remember { mutableStateOf<ChapterEntity?>(null) }
+    var chapterToEdit by remember { mutableStateOf<ChapterEntity?>(null) }
+    var chapterToDelete by remember { mutableStateOf<ChapterEntity?>(null) }
 
     val accent = try {
         Color(android.graphics.Color.parseColor(subject?.colorHex ?: "#4F46E5"))
@@ -255,10 +262,12 @@ fun SubjectDetailScreen(
                                 )
                             }
                         } else {
-                            items(subjectChapters) { chap ->
-                                ChapterCardRow(chap = chap) {
-                                    onNavigateToChapter(chap.id)
-                                }
+                            items(subjectChapters, key = { it.id }) { chap ->
+                                ChapterCardRow(
+                                    chap = chap,
+                                    onClick = { onNavigateToChapter(chap.id) },
+                                    onLongClick = { chapterActionTarget = chap }
+                                )
                             }
                         }
                     }
@@ -275,10 +284,12 @@ fun SubjectDetailScreen(
                                 )
                             }
                         } else {
-                            items(subjectChapters) { chap ->
-                                ChapterCardRow(chap = chap) {
-                                    onNavigateToChapter(chap.id)
-                                }
+                            items(subjectChapters, key = { it.id }) { chap ->
+                                ChapterCardRow(
+                                    chap = chap,
+                                    onClick = { onNavigateToChapter(chap.id) },
+                                    onLongClick = { chapterActionTarget = chap }
+                                )
                             }
                         }
                     }
@@ -466,16 +477,121 @@ fun SubjectDetailScreen(
             }
         )
     }
+
+    chapterActionTarget?.let { chap ->
+        AlertDialog(
+            onDismissRequest = { chapterActionTarget = null },
+            title = { Text(chap.name, fontWeight = FontWeight.Bold) },
+            text = { Text("Choose an action for this chapter:") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        chapterToEdit = chap
+                        chapterActionTarget = null
+                    }
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Edit Name")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        chapterToDelete = chap
+                        chapterActionTarget = null
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Delete")
+                }
+            }
+        )
+    }
+
+    chapterToEdit?.let { chap ->
+        var editName by remember(chap.id) { mutableStateOf(chap.name) }
+        AlertDialog(
+            onDismissRequest = { chapterToEdit = null },
+            title = { Text("Edit Chapter Name", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = editName,
+                    onValueChange = { editName = it },
+                    label = { Text("Chapter Name *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editName.isNotBlank()) {
+                            viewModel.updateChapter(chap.copy(name = editName.trim()))
+                            chapterToEdit = null
+                        }
+                    },
+                    enabled = editName.isNotBlank()
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { chapterToEdit = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    chapterToDelete?.let { chap ->
+        AlertDialog(
+            onDismissRequest = { chapterToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = { Text("Delete Chapter?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Are you sure you want to delete '${chap.name}'? All notes, questions, and tests under this chapter will be removed.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteChapter(chap)
+                        chapterToDelete = null
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { chapterToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun ChapterCardRow(
     chap: com.studyforge.app.data.local.entities.ChapterEntity,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     StudyCard(
         shape = RoundedCornerShape(20.dp),
-        onClick = onClick
+        onClick = onClick,
+        onLongClick = onLongClick
     ) {
         Row(
             modifier = Modifier.padding(18.dp),

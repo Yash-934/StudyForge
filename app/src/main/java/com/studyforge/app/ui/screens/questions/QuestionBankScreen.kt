@@ -53,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.studyforge.app.data.local.entities.QuestionEntity
@@ -63,6 +64,11 @@ import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.OptionMathText
 import com.studyforge.app.ui.components.StudyCard
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material3.Surface
+import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.viewmodel.StudyViewModel
 import org.json.JSONArray
 
@@ -293,6 +299,8 @@ fun QuestionBankCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showExplanation by remember { mutableStateOf(false) }
+
     val optionsList = remember(question.optionsJson) {
         try {
             val arr = JSONArray(question.optionsJson)
@@ -301,6 +309,17 @@ fun QuestionBankCard(
             emptyList()
         }
     }
+
+    val correctList = remember(question.correctAnswersJson) {
+        try {
+            val arr = JSONArray(question.correctAnswersJson)
+            (0 until arr.length()).map { arr.optString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    val hasExplanation = question.explanation.isNotBlank() || question.detailedSolution.isNotBlank()
 
     StudyCard(
         shape = RoundedCornerShape(20.dp)
@@ -335,39 +354,147 @@ fun QuestionBankCard(
             MarkdownMathView(markdownText = question.questionText)
 
             if (optionsList.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 optionsList.forEachIndexed { idx, opt ->
                     val letter = ('A' + idx).toChar()
+                    val isCorrect = correctList.any { ans ->
+                        ans.equals(idx.toString(), ignoreCase = true) ||
+                        ans.equals(letter.toString(), ignoreCase = true) ||
+                        ans.trim().equals(opt.trim(), ignoreCase = true)
+                    }
+
+                    if (isCorrect) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = SuccessGreen.copy(alpha = 0.12f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                                .border(1.5.dp, SuccessGreen, RoundedCornerShape(12.dp))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Correct Option",
+                                    tint = SuccessGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "$letter) ",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = SuccessGreen
+                                )
+                                Box(modifier = Modifier.weight(1f)) {
+                                    OptionMathText(
+                                        text = opt,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = SuccessGreen,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "$letter) ",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Box(modifier = Modifier.weight(1f)) {
+                                OptionMathText(
+                                    text = opt,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+            } else if (correctList.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = SuccessGreen.copy(alpha = 0.12f),
+                    modifier = Modifier.border(1.dp, SuccessGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "$letter) ",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = SuccessGreen,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Box(modifier = Modifier.weight(1f)) {
-                            OptionMathText(
-                                text = opt,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Correct Answer: ${correctList.joinToString(", ")}",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = SuccessGreen
+                        )
                     }
                 }
             }
 
             if (question.topic.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Topic: ${question.topic}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
+            }
+
+            if (hasExplanation) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showExplanation = !showExplanation }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (showExplanation) "Hide Explanation" else "Show Fast Revision Explanation",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                if (showExplanation) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            val explanationText = question.explanation.ifBlank { question.detailedSolution }
+                            MarkdownMathView(markdownText = explanationText)
+                        }
+                    }
+                }
             }
         }
     }

@@ -25,16 +25,24 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -43,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -89,6 +98,7 @@ fun ChapterDetailScreen(
     onNavigateToTestCreate: (Long) -> Unit,
     onNavigateToSmartTest: (Long) -> Unit,
     onNavigateToMistakes: (Long) -> Unit,
+    onNavigateToChapterRevision: (Long) -> Unit,
     onNavigateToFlashcards: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -115,6 +125,9 @@ fun ChapterDetailScreen(
 
     var showAiDialog by remember { mutableStateOf(false) }
     var showNotesSheet by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var showEditChapterDialog by remember { mutableStateOf(false) }
+    var showDeleteChapterDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -143,6 +156,30 @@ fun ChapterDetailScreen(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = "AI Study Assistant",
                             tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = { showMoreMenu = true }) {
+                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More Options")
+                    }
+                    DropdownMenu(
+                        expanded = showMoreMenu,
+                        onDismissRequest = { showMoreMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Chapter Name") },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                showMoreMenu = false
+                                showEditChapterDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete Chapter", color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                showMoreMenu = false
+                                showDeleteChapterDialog = true
+                            }
                         )
                     }
                 }
@@ -361,6 +398,18 @@ fun ChapterDetailScreen(
                     accentColor = ErrorRed,
                     badgeText = if (chapterMistakes.isNotEmpty()) "${chapterMistakes.size} Pending" else "Resolved",
                     onClick = { onNavigateToMistakes(chapterId) }
+                )
+            }
+
+            // Quick MCQ Revision Module Card (Before Flashcards)
+            item {
+                ModuleHubCard(
+                    title = "Chapter MCQ Revision",
+                    description = "${chapterQuestions.size} questions • Instant correct/wrong check & solutions",
+                    icon = Icons.Default.FactCheck,
+                    accentColor = Color(0xFF0D9488),
+                    badgeText = if (chapterQuestions.isNotEmpty()) "${chapterQuestions.size} MCQs" else null,
+                    onClick = { onNavigateToChapterRevision(chapterId) }
                 )
             }
 
@@ -584,6 +633,77 @@ fun ChapterDetailScreen(
             subjectId = chapter.subjectId,
             batchId = chapter.batchId,
             onDismiss = { showAiDialog = false }
+        )
+    }
+
+    if (showEditChapterDialog && chapter != null) {
+        var editName by remember(chapter.name) { mutableStateOf(chapter.name) }
+        AlertDialog(
+            onDismissRequest = { showEditChapterDialog = false },
+            title = { Text("Edit Chapter Name", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = editName,
+                    onValueChange = { editName = it },
+                    label = { Text("Chapter Name *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editName.isNotBlank()) {
+                            viewModel.updateChapter(chapter.copy(name = editName.trim()))
+                            showEditChapterDialog = false
+                        }
+                    },
+                    enabled = editName.isNotBlank()
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditChapterDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteChapterDialog && chapter != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteChapterDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = { Text("Delete Chapter?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Are you sure you want to delete '${chapter.name}'? All notes, questions, and tests associated with this chapter will be permanently removed.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteChapter(chapter)
+                        showDeleteChapterDialog = false
+                        onBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteChapterDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

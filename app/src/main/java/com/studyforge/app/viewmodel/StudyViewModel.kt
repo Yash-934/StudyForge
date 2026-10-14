@@ -256,6 +256,13 @@ class StudyViewModel(
         }
     }
 
+    fun updateChapter(chapter: ChapterEntity) {
+        viewModelScope.launch {
+            repository.updateChapter(chapter)
+            showMessage("Chapter updated: ${chapter.name}")
+        }
+    }
+
     // -------------------------------------------------------------
     // Note Management
     // -------------------------------------------------------------
@@ -611,6 +618,19 @@ class StudyViewModel(
         }
     }
 
+    fun deleteTest(test: TestEntity) {
+        viewModelScope.launch {
+            repository.deleteTest(test)
+            showMessage("Test '${test.title}' deleted")
+        }
+    }
+
+    fun recordQuestionAttempt(questionId: Long, wasCorrect: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.recordQuestionAttempt(questionId, wasCorrect)
+        }
+    }
+
     // -------------------------------------------------------------
     // Test Player Execution Engine
     // -------------------------------------------------------------
@@ -623,7 +643,8 @@ class StudyViewModel(
             } catch (e: Exception) {
                 emptyList()
             }
-            val qList = repository.getQuestionsByIds(ids)
+            val fetchedMap = repository.getQuestionsByIds(ids).associateBy { it.id }
+            val qList = ids.mapNotNull { fetchedMap[it] }
             _activeTest.value = test
             _activeQuestions.value = qList
             _currentQuestionIndex.value = 0

@@ -266,6 +266,7 @@ fun AppNavigation(
                     onNavigateToTestCreate = { chId -> navController.navigate(Screen.TestCreate.createRoute(chId)) },
                     onNavigateToSmartTest = { chId -> navController.navigate(Screen.SmartTestCreate.createRoute(chId)) },
                     onNavigateToMistakes = { chId -> navController.navigate(Screen.MistakeBook.createRoute(chId)) },
+                    onNavigateToChapterRevision = { chId -> navController.navigate(Screen.ChapterRevision.createRoute(chId)) },
                     onNavigateToFlashcards = { chId -> navController.navigate(Screen.Flashcards.createRoute(chId)) }
                 )
             }
@@ -458,6 +459,19 @@ fun AppNavigation(
             // Revision Queue
             composable(Screen.RevisionQueue.route) {
                 RevisionScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            // Chapter MCQ Revision
+            composable(
+                route = Screen.ChapterRevision.route,
+                arguments = listOf(navArgument("chapterId") { type = NavType.LongType })
+            ) { backStack ->
+                val cId = backStack.arguments?.getLong("chapterId") ?: 1L
+                com.studyforge.app.ui.screens.revision.ChapterRevisionScreen(
+                    chapterId = cId,
                     viewModel = viewModel,
                     onBack = { navController.popBackStack() }
                 )

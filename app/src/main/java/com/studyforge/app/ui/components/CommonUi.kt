@@ -1,8 +1,10 @@
 package com.studyforge.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +56,7 @@ import com.studyforge.app.ui.theme.WarningYellow
  * Modern elevated card with subtle border and smooth rounded corners,
  * matching the uploaded style.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun StudyCard(
     modifier: Modifier = Modifier,
@@ -62,9 +65,10 @@ fun StudyCard(
     borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
     elevation: Dp = 2.dp,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    if (onClick != null) {
+    if (onClick != null || onLongClick != null) {
         Card(
             shape = shape,
             colors = CardDefaults.cardColors(containerColor = containerColor),
@@ -72,7 +76,10 @@ fun StudyCard(
             border = BorderStroke(1.dp, borderColor),
             modifier = modifier
                 .fillMaxWidth()
-                .clickable { onClick() }
+                .combinedClickable(
+                    onClick = { onClick?.invoke() },
+                    onLongClick = onLongClick
+                )
         ) {
             content()
         }

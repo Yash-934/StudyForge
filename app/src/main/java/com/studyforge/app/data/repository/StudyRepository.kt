@@ -114,6 +114,7 @@ class StudyRepository(private val db: AppDatabase) {
     suspend fun updateQuestion(question: QuestionEntity) = db.questionDao().updateQuestion(question)
     suspend fun deleteQuestion(question: QuestionEntity) = db.questionDao().deleteQuestion(question)
     suspend fun getQuestionsByIds(ids: List<Long>): List<QuestionEntity> = db.questionDao().getQuestionsByIds(ids)
+    suspend fun recordQuestionAttempt(questionId: Long, wasCorrect: Boolean) = db.questionDao().recordAttempt(questionId, if (wasCorrect) 1 else 0)
 
     // Tests
     suspend fun insertTest(test: TestEntity): Long = db.testDao().insertTest(test)

@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BatchDao {
-    @Query("SELECT * FROM batches ORDER BY isPinned DESC, createdAt DESC")
+    @Query("SELECT * FROM batches ORDER BY isPinned DESC, createdAt ASC, id ASC")
     fun getAllBatches(): Flow<List<BatchEntity>>
 
     @Query("SELECT * FROM batches WHERE id = :id LIMIT 1")
@@ -46,10 +46,10 @@ interface BatchDao {
 
 @Dao
 interface SubjectDao {
-    @Query("SELECT * FROM subjects WHERE batchId = :batchId ORDER BY isPinned DESC, createdAt ASC")
+    @Query("SELECT * FROM subjects WHERE batchId = :batchId ORDER BY isPinned DESC, createdAt ASC, id ASC")
     fun getSubjectsForBatch(batchId: Long): Flow<List<SubjectEntity>>
 
-    @Query("SELECT * FROM subjects ORDER BY isPinned DESC, createdAt DESC")
+    @Query("SELECT * FROM subjects ORDER BY isPinned DESC, createdAt ASC, id ASC")
     fun getAllSubjects(): Flow<List<SubjectEntity>>
 
     @Query("SELECT * FROM subjects WHERE id = :id LIMIT 1")
@@ -70,10 +70,10 @@ interface SubjectDao {
 
 @Dao
 interface ChapterDao {
-    @Query("SELECT * FROM chapters WHERE subjectId = :subjectId ORDER BY orderIndex ASC, createdAt ASC")
+    @Query("SELECT * FROM chapters WHERE subjectId = :subjectId ORDER BY orderIndex ASC, id ASC")
     fun getChaptersForSubject(subjectId: Long): Flow<List<ChapterEntity>>
 
-    @Query("SELECT * FROM chapters ORDER BY createdAt DESC")
+    @Query("SELECT * FROM chapters ORDER BY orderIndex ASC, id ASC")
     fun getAllChapters(): Flow<List<ChapterEntity>>
 
     @Query("SELECT * FROM chapters WHERE id = :id LIMIT 1")
@@ -154,13 +154,13 @@ interface FormulaDao {
 
 @Dao
 interface QuestionDao {
-    @Query("SELECT * FROM questions WHERE chapterId = :chapterId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM questions WHERE chapterId = :chapterId ORDER BY id ASC")
     fun getQuestionsForChapter(chapterId: Long): Flow<List<QuestionEntity>>
 
-    @Query("SELECT * FROM questions WHERE subjectId = :subjectId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM questions WHERE subjectId = :subjectId ORDER BY id ASC")
     fun getQuestionsForSubject(subjectId: Long): Flow<List<QuestionEntity>>
 
-    @Query("SELECT * FROM questions ORDER BY createdAt DESC")
+    @Query("SELECT * FROM questions ORDER BY id ASC")
     fun getAllQuestions(): Flow<List<QuestionEntity>>
 
     @Query("SELECT * FROM questions WHERE id = :id LIMIT 1")

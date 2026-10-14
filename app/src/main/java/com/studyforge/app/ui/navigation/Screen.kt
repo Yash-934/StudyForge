@@ -65,6 +65,9 @@ sealed class Screen(val route: String) {
     }
 
     object RevisionQueue : Screen("revision_queue")
+    object ChapterRevision : Screen("chapter_revision/{chapterId}") {
+        fun createRoute(chapterId: Long) = "chapter_revision/$chapterId"
+    }
     object Flashcards : Screen("flashcards?chapterId={chapterId}") {
         fun createRoute(chapterId: Long = -1L) = "flashcards?chapterId=$chapterId"
     }
