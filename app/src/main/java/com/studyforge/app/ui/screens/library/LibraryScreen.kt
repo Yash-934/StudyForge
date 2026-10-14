@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
@@ -89,6 +90,7 @@ fun LibraryScreen(
     var showImportBulkQBankDialog by remember { mutableStateOf(false) }
     var importTargetBatchId by remember { mutableStateOf<Long?>(null) }
     var batchToDelete by remember { mutableStateOf<BatchEntity?>(null) }
+    var batchToRename by remember { mutableStateOf<BatchEntity?>(null) }
 
     val filteredBatches = remember(batches, searchQuery) {
         if (searchQuery.isBlank()) batches else batches.filter {
@@ -217,6 +219,7 @@ fun LibraryScreen(
                         chaptersCount = batchChapters.size,
                         avgMastery = avgMastery,
                         onAddSubject = { showCreateSubjectDialogForBatch = batch.id },
+                        onRenameBatch = { batchToRename = batch },
                         onImportSubjectsJson = {
                             importTargetBatchId = batch.id
                             showImportCurriculumDialog = true
@@ -295,6 +298,24 @@ fun LibraryScreen(
         )
     }
 
+    // Rename Batch Dialog
+    batchToRename?.let { b ->
+        RenameBatchDialog(
+            batch = b,
+            onDismiss = { batchToRename = null },
+            onConfirm = { newName, course, session ->
+                viewModel.updateBatch(
+                    b.copy(
+                        name = newName,
+                        courseOrClass = course,
+                        session = session
+                    )
+                )
+                batchToRename = null
+            }
+        )
+    }
+
     // Import Curriculum (Batch & Subjects) JSON Dialog
     if (showImportCurriculumDialog) {
         ImportCurriculumDialog(
@@ -336,6 +357,7 @@ fun BatchCard(
     chaptersCount: Int,
     avgMastery: Int,
     onAddSubject: () -> Unit,
+    onRenameBatch: () -> Unit = {},
     onImportSubjectsJson: () -> Unit = {},
     onImportQBankJson: () -> Unit = {},
     onDeleteBatch: () -> Unit,
@@ -384,6 +406,14 @@ fun BatchCard(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("Rename Batch") },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onRenameBatch()
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text("Import All Chapters Q-Bank") },
                             leadingIcon = { Icon(Icons.Default.Quiz, contentDescription = null) },
@@ -638,3 +668,61 @@ fun CreateSubjectDialog(
         }
     )
 }
+
+@Composable
+fun RenameBatchDialog(
+    batch: BatchEntity,
+    onDismiss: () -> Unit,
+    onConfirm: (newName: String, course: String, session: String) -> Unit
+) {
+    var name by remember { mutableStateOf(batch.name) }
+    var course by remember { mutableStateOf(batch.courseOrClass) }
+    var session by remember { mutableStateOf(batch.session) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Batch", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Batch Name *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                OutlinedTextField(
+                    value = course,
+                    onValueChange = { course = it },
+                    label = { Text("Course / Class (Optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                OutlinedTextField(
+                    value = session,
+                    onValueChange = { session = it },
+                    label = { Text("Session / Target Year (Optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) onConfirm(name.trim(), course.trim(), session.trim())
+                },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+

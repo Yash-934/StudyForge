@@ -443,7 +443,7 @@ fun BlockMathCard(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
-    var showKatexWebView by remember { mutableStateOf(false) }
+    var showKatexWebView by remember { mutableStateOf(true) }
 
     val readableMath = remember(rawLatex, preformatted) {
         preformatted?.ifBlank { null } ?: formatLatexToReadableMath(rawLatex)

@@ -297,6 +297,13 @@ private fun prepareLatexForKaTeX(raw: String): String {
         trimmed = trimmed.substring(1, trimmed.length - 1).trim()
     }
 
+    // Convert plain text integral notation e.g. "integral_a^b" -> "\int_{a}^{b}"
+    if (trimmed.contains("integral_")) {
+        trimmed = trimmed.replace("integral_", "\\int_")
+    } else if (trimmed.contains("integral ")) {
+        trimmed = trimmed.replace("integral ", "\\int ")
+    }
+
     return trimmed
 }
 

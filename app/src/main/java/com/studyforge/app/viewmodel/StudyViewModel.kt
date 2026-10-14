@@ -204,6 +204,13 @@ class StudyViewModel(
         }
     }
 
+    fun updateBatch(batch: BatchEntity) {
+        viewModelScope.launch {
+            repository.updateBatch(batch)
+            showMessage("Batch updated: ${batch.name}")
+        }
+    }
+
     fun deleteBatch(batch: BatchEntity) {
         viewModelScope.launch {
             repository.deleteBatch(batch)

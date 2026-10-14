@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -98,17 +101,21 @@ fun ChapterRevisionScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(modifier = Modifier.padding(end = 8.dp)) {
                         Text(
                             text = "Chapter MCQ Revision",
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (chapter != null) {
                             Text(
                                 text = chapter.name,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -143,32 +150,37 @@ fun ChapterRevisionScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedButton(
                             onClick = { if (currentIndex > 0) currentIndex-- },
                             enabled = currentIndex > 0,
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Previous")
+                            Text("Previous", maxLines = 1)
                         }
 
                         Text(
                             text = "Q ${currentIndex + 1} / ${chapterQuestions.size}",
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         )
 
                         Button(
                             onClick = { if (currentIndex < chapterQuestions.size - 1) currentIndex++ },
                             enabled = currentIndex < chapterQuestions.size - 1,
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text("Next")
+                            Text("Next", maxLines = 1)
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
                         }
@@ -229,7 +241,10 @@ fun ChapterRevisionScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = SuccessGreen.copy(alpha = 0.15f)
@@ -238,7 +253,8 @@ fun ChapterRevisionScreen(
                                 text = "✓ $correctCount Correct",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = SuccessGreen,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                maxLines = 1
                             )
                         }
 
@@ -251,7 +267,8 @@ fun ChapterRevisionScreen(
                                     text = "✗ $wrongCount Wrong",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                     color = ErrorRed,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -260,7 +277,10 @@ fun ChapterRevisionScreen(
                     Text(
                         text = "${(chapterQuestions.size - userCorrectMap.size)} remaining",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
 
@@ -285,16 +305,19 @@ fun ChapterRevisionScreen(
 
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .widthIn(min = 36.dp)
+                                .height(34.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(bg)
-                                .clickable { currentIndex = idx },
+                                .clickable { currentIndex = idx }
+                                .padding(horizontal = 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "${idx + 1}",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = textColor
+                                color = textColor,
+                                maxLines = 1
                             )
                         }
                     }
@@ -400,7 +423,7 @@ fun ChapterRevisionScreen(
                                     )
                                 }
                                 isThisCorrect -> {
-                                    // Sahi option turnt GREEN ho jaaye
+                                    // Sahi option turnt GREEN ho jaaye AFTER user answers
                                     listOf(
                                         SuccessGreen.copy(alpha = 0.16f),
                                         SuccessGreen,
@@ -428,12 +451,29 @@ fun ChapterRevisionScreen(
                                 }
                             }
 
+                            val optionTextColor = when {
+                                !isAnswered -> MaterialTheme.colorScheme.onSurface
+                                isThisCorrect -> SuccessGreen
+                                isSelectedByUser -> ErrorRed
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            }
+
+                            val optionFontWeight = when {
+                                !isAnswered -> FontWeight.Normal
+                                isThisCorrect || isSelectedByUser -> FontWeight.SemiBold
+                                else -> FontWeight.Normal
+                            }
+
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
                                 color = cardBg as Color,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .border(if (isThisCorrect || (isSelectedByUser && isAnswered)) 2.dp else 1.dp, cardBorder as Color, RoundedCornerShape(16.dp))
+                                    .border(
+                                        width = if (isAnswered && (isThisCorrect || isSelectedByUser)) 2.dp else 1.dp,
+                                        color = cardBorder as Color,
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
                                     .clip(RoundedCornerShape(16.dp))
                                     .clickable {
                                         if (!isAnswered) {
@@ -445,15 +485,17 @@ fun ChapterRevisionScreen(
                                     }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.Top
                                 ) {
                                     if (icon != null) {
                                         Icon(
                                             imageVector = icon as androidx.compose.ui.graphics.vector.ImageVector,
                                             contentDescription = null,
                                             tint = if (isThisCorrect) SuccessGreen else ErrorRed,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier
+                                                .padding(top = 2.dp)
+                                                .size(20.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                     }
@@ -461,16 +503,15 @@ fun ChapterRevisionScreen(
                                     Text(
                                         text = "$letter)",
                                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                                        color = letterColor as Color
+                                        color = letterColor as Color,
+                                        modifier = Modifier.padding(top = 1.dp)
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Box(modifier = Modifier.weight(1f)) {
                                         OptionMathText(
                                             text = opt,
-                                            style = MaterialTheme.typography.bodyLarge.copy(
-                                                fontWeight = if (isThisCorrect || isSelectedByUser) FontWeight.SemiBold else FontWeight.Normal
-                                            ),
-                                            color = if (isThisCorrect) SuccessGreen else if (isSelectedByUser) ErrorRed else MaterialTheme.colorScheme.onSurface,
+                                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = optionFontWeight),
+                                            color = optionTextColor,
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }
