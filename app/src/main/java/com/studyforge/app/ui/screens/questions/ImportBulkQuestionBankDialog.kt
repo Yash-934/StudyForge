@@ -93,16 +93,33 @@ fun ImportBulkQuestionBankDialog(
     var isImporting by remember { mutableStateOf(false) }
     var showChapterPreview by remember { mutableStateOf(true) }
 
-    // Target Selection
-    var selectedBatchId by remember {
+    // Target Selection: initialize with preselected or first available
+    var selectedBatchId by remember(preselectedBatchId) {
         mutableStateOf(
             preselectedBatchId ?: batches.firstOrNull()?.id ?: 0L
         )
     }
-    var selectedSubjectId by remember {
+    var selectedSubjectId by remember(preselectedSubjectId, selectedBatchId) {
         mutableStateOf(
             preselectedSubjectId ?: subjects.firstOrNull { it.batchId == selectedBatchId }?.id ?: 0L
         )
+    }
+
+    LaunchedEffect(batches, preselectedBatchId) {
+        if (preselectedBatchId != null && preselectedBatchId > 0L) {
+            selectedBatchId = preselectedBatchId
+        } else if (selectedBatchId == 0L && batches.isNotEmpty()) {
+            selectedBatchId = batches.first().id
+        }
+    }
+
+    LaunchedEffect(selectedBatchId, subjects) {
+        if (selectedBatchId > 0L) {
+            val batchSubs = subjects.filter { it.batchId == selectedBatchId }
+            if (selectedSubjectId != 0L && batchSubs.none { it.id == selectedSubjectId }) {
+                selectedSubjectId = batchSubs.firstOrNull()?.id ?: 0L
+            }
+        }
     }
 
     var batchDropdownExpanded by remember { mutableStateOf(false) }
@@ -228,9 +245,12 @@ fun ImportBulkQuestionBankDialog(
                         ) {
                             Text("Target Batch:", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(95.dp))
                             Box(modifier = Modifier.weight(1f)) {
-                                val currentBatchName = batches.find { it.id == selectedBatchId }?.name
-                                    ?: validationResult?.batchName
-                                    ?: "Auto-create / Select Batch"
+                                val currentBatch = batches.find { it.id == selectedBatchId }
+                                val currentBatchName = when {
+                                    currentBatch != null -> "${currentBatch.name} (${currentBatch.courseOrClass.ifBlank { "Standard" }})"
+                                    !validationResult?.batchName.isNullOrBlank() -> "✨ Auto-create: ${validationResult?.batchName}"
+                                    else -> "Auto-create / Select Batch"
+                                }
 
                                 OutlinedButton(
                                     onClick = { batchDropdownExpanded = true },
@@ -251,11 +271,21 @@ fun ImportBulkQuestionBankDialog(
                                     expanded = batchDropdownExpanded,
                                     onDismissRequest = { batchDropdownExpanded = false }
                                 ) {
+                                    DropdownMenuItem(
+                                        text = { Text("✨ Auto-create or Auto-match from JSON") },
+                                        onClick = {
+                                            selectedBatchId = 0L
+                                            selectedSubjectId = 0L
+                                            batchDropdownExpanded = false
+                                        }
+                                    )
                                     batches.forEach { b ->
                                         DropdownMenuItem(
-                                            text = { Text("${b.name} (${b.courseOrClass.ifBlank { "Standard" }})") },
+                                            text = { Text("📁 ${b.name} (${b.courseOrClass.ifBlank { "Standard" }})") },
                                             onClick = {
                                                 selectedBatchId = b.id
+                                                val batchSubs = subjects.filter { it.batchId == b.id }
+                                                selectedSubjectId = batchSubs.firstOrNull()?.id ?: 0L
                                                 batchDropdownExpanded = false
                                             }
                                         )
@@ -294,9 +324,16 @@ fun ImportBulkQuestionBankDialog(
                                     expanded = subjectDropdownExpanded,
                                     onDismissRequest = { subjectDropdownExpanded = false }
                                 ) {
+                                    DropdownMenuItem(
+                                        text = { Text("✨ Auto-match from JSON / Create Subject") },
+                                        onClick = {
+                                            selectedSubjectId = 0L
+                                            subjectDropdownExpanded = false
+                                        }
+                                    )
                                     availableSubjectsForBatch.forEach { s ->
                                         DropdownMenuItem(
-                                            text = { Text(s.name) },
+                                            text = { Text("📖 ${s.name}") },
                                             onClick = {
                                                 selectedSubjectId = s.id
                                                 subjectDropdownExpanded = false
@@ -481,8 +518,15 @@ fun ImportBulkQuestionBankDialog(
                     val validRes = validationResult
                     if (validRes != null && validRes.isValid) {
                         isImporting = true
-                        val bId = if (selectedBatchId > 0L) selectedBatchId else (batches.firstOrNull()?.id ?: 0L)
-                        val sId = if (selectedSubjectId > 0L) selectedSubjectId else null
+                        val bId = if (selectedBatchId > 0L) {
+                            selectedBatchId
+                        } else {
+                            val matched = batches.find { it.name.equals(validRes.batchName, ignoreCase = true) }
+                            matched?.id ?: (batches.firstOrNull()?.id ?: 0L)
+                        }
+                        val sId = if (selectedSubjectId > 0L && subjects.any { it.id == selectedSubjectId && it.batchId == bId }) {
+                            selectedSubjectId
+                        } else null
 
                         viewModel.importBulkQuestionBank(
                             result = validRes,

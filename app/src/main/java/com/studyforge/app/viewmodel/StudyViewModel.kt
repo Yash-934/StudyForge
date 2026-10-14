@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -768,11 +769,36 @@ class StudyViewModel(
         targetChapterId: Long
     ) {
         viewModelScope.launch {
+            val allBatches = repository.allBatches.first()
+            val resolvedBatchId = if (targetBatchId > 0L && allBatches.any { it.id == targetBatchId }) {
+                targetBatchId
+            } else {
+                allBatches.firstOrNull()?.id ?: repository.insertBatch(BatchEntity(name = "General Batch"))
+            }
+
+            val existingSubjects = repository.allSubjects.first().filter { it.batchId == resolvedBatchId }
+            val resolvedSubjectId = if (targetSubjectId > 0L && existingSubjects.any { it.id == targetSubjectId }) {
+                targetSubjectId
+            } else if (existingSubjects.isNotEmpty()) {
+                existingSubjects.first().id
+            } else {
+                repository.insertSubject(SubjectEntity(batchId = resolvedBatchId, name = "General Subject", iconName = "book", colorHex = "#3B82F6"))
+            }
+
+            val existingChapters = repository.allChapters.first().filter { it.subjectId == resolvedSubjectId && it.batchId == resolvedBatchId }
+            val resolvedChapterId = if (targetChapterId > 0L && existingChapters.any { it.id == targetChapterId }) {
+                targetChapterId
+            } else if (existingChapters.isNotEmpty()) {
+                existingChapters.first().id
+            } else {
+                repository.insertChapter(ChapterEntity(subjectId = resolvedSubjectId, batchId = resolvedBatchId, name = testDto.title.ifBlank { "General Chapter" }, orderIndex = 0))
+            }
+
             val entities = testDto.questions.map { q ->
                 QuestionEntity(
-                    chapterId = targetChapterId,
-                    subjectId = targetSubjectId,
-                    batchId = targetBatchId,
+                    chapterId = resolvedChapterId,
+                    subjectId = resolvedSubjectId,
+                    batchId = resolvedBatchId,
                     type = q.type,
                     questionText = q.question,
                     optionsJson = JSONArray(q.options).toString(),
@@ -792,9 +818,9 @@ class StudyViewModel(
             if (importMode == 1) { // As Test
                 val test = TestEntity(
                     title = testDto.title.ifBlank { "Imported Test" },
-                    batchId = targetBatchId,
-                    subjectId = targetSubjectId,
-                    chapterId = targetChapterId,
+                    batchId = resolvedBatchId,
+                    subjectId = resolvedSubjectId,
+                    chapterId = resolvedChapterId,
                     durationMinutes = testDto.durationMinutes,
                     questionIdsJson = JSONArray(insertedIds).toString()
                 )

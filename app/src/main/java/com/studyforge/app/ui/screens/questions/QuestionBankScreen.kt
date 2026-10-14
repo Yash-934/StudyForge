@@ -86,6 +86,7 @@ fun QuestionBankScreen(
 ) {
     val questions by viewModel.questions.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
+    val subjects by viewModel.subjects.collectAsState()
     val chapter = chapters.find { it.id == chapterId }
 
     val rawList = remember(questions, chapterId, subjectId) {
@@ -292,7 +293,8 @@ fun QuestionBankScreen(
     if (showBulkImportDialog) {
         ImportBulkQuestionBankDialog(
             viewModel = viewModel,
-            preselectedSubjectId = if (subjectId > 0L) subjectId else null,
+            preselectedBatchId = chapter?.batchId ?: subjects.find { it.id == subjectId }?.batchId,
+            preselectedSubjectId = if (subjectId > 0L) subjectId else chapter?.subjectId,
             onDismiss = { showBulkImportDialog = false },
             onSuccess = { summary ->
                 showBulkImportDialog = false

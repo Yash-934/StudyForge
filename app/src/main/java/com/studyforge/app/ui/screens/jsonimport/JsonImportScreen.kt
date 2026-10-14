@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -52,6 +54,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -102,6 +105,30 @@ fun JsonImportScreen(
     var selectedBatchId by remember { mutableStateOf(batches.firstOrNull()?.id ?: 1L) }
     var selectedSubjectId by remember { mutableStateOf(subjects.firstOrNull()?.id ?: 1L) }
     var selectedChapterId by remember { mutableStateOf(chapters.firstOrNull()?.id ?: 1L) }
+
+    var batchDropdownExpanded by remember { mutableStateOf(false) }
+    var subjectDropdownExpanded by remember { mutableStateOf(false) }
+    var chapterDropdownExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(batches) {
+        if (batches.isNotEmpty() && batches.none { it.id == selectedBatchId }) {
+            selectedBatchId = batches.first().id
+        }
+    }
+
+    LaunchedEffect(selectedBatchId, subjects) {
+        val subs = subjects.filter { it.batchId == selectedBatchId }
+        if (subs.isNotEmpty() && subs.none { it.id == selectedSubjectId }) {
+            selectedSubjectId = subs.first().id
+        }
+    }
+
+    LaunchedEffect(selectedSubjectId, chapters) {
+        val chaps = chapters.filter { it.subjectId == selectedSubjectId }
+        if (chaps.isNotEmpty() && chaps.none { it.id == selectedChapterId }) {
+            selectedChapterId = chaps.first().id
+        }
+    }
 
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -429,22 +456,144 @@ fun JsonImportScreen(
 
                     // Chapter assignment
                     item {
-                        val activeChap = chapters.find { it.id == selectedChapterId } ?: chapters.firstOrNull()
-                        val activeSub = subjects.find { it.id == activeChap?.subjectId } ?: subjects.firstOrNull()
-                        val activeBatch = batches.find { it.id == activeSub?.batchId } ?: batches.firstOrNull()
+                        val activeBatch = batches.find { it.id == selectedBatchId } ?: batches.firstOrNull()
+                        val availableSubs = subjects.filter { it.batchId == (activeBatch?.id ?: 0L) }
+                        val activeSub = availableSubs.find { it.id == selectedSubjectId } ?: availableSubs.firstOrNull()
+                        val availableChaps = chapters.filter { it.subjectId == (activeSub?.id ?: 0L) }
+                        val activeChap = availableChaps.find { it.id == selectedChapterId } ?: availableChaps.firstOrNull()
 
                         StudyCard(
                             shape = RoundedCornerShape(18.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
                                 Text("Assign Destination", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Assign to: ${activeBatch?.name ?: "Batch"} → ${activeSub?.name ?: "Subject"} → ${activeChap?.name ?: "Chapter"}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+
+                                // Batch selector
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Batch:", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(75.dp))
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        OutlinedButton(
+                                            onClick = { batchDropdownExpanded = true },
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = activeBatch?.let { "${it.name} (${it.courseOrClass.ifBlank { "Standard" }})" } ?: "Select Batch",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 1,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = batchDropdownExpanded,
+                                            onDismissRequest = { batchDropdownExpanded = false }
+                                        ) {
+                                            batches.forEach { b ->
+                                                DropdownMenuItem(
+                                                    text = { Text("📁 ${b.name} (${b.courseOrClass.ifBlank { "Standard" }})") },
+                                                    onClick = {
+                                                        selectedBatchId = b.id
+                                                        val subs = subjects.filter { it.batchId == b.id }
+                                                        selectedSubjectId = subs.firstOrNull()?.id ?: 0L
+                                                        val chaps = chapters.filter { it.subjectId == selectedSubjectId }
+                                                        selectedChapterId = chaps.firstOrNull()?.id ?: 0L
+                                                        batchDropdownExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Subject selector
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Subject:", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(75.dp))
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        OutlinedButton(
+                                            onClick = { subjectDropdownExpanded = true },
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = activeSub?.name ?: "Auto-create Subject",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 1,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = subjectDropdownExpanded,
+                                            onDismissRequest = { subjectDropdownExpanded = false }
+                                        ) {
+                                            availableSubs.forEach { s ->
+                                                DropdownMenuItem(
+                                                    text = { Text("📖 ${s.name}") },
+                                                    onClick = {
+                                                        selectedSubjectId = s.id
+                                                        val chaps = chapters.filter { it.subjectId == s.id }
+                                                        selectedChapterId = chaps.firstOrNull()?.id ?: 0L
+                                                        subjectDropdownExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Chapter selector
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Chapter:", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(75.dp))
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        OutlinedButton(
+                                            onClick = { chapterDropdownExpanded = true },
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = activeChap?.name ?: "Auto-create Chapter",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 1,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = chapterDropdownExpanded,
+                                            onDismissRequest = { chapterDropdownExpanded = false }
+                                        ) {
+                                            availableChaps.forEach { c ->
+                                                DropdownMenuItem(
+                                                    text = { Text("🔖 ${c.name}") },
+                                                    onClick = {
+                                                        selectedChapterId = c.id
+                                                        chapterDropdownExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -453,12 +602,17 @@ fun JsonImportScreen(
                     item {
                         Button(
                             onClick = {
-                                val activeChap = chapters.find { it.id == selectedChapterId } ?: chapters.firstOrNull()
+                                val activeBatch = batches.find { it.id == selectedBatchId } ?: batches.firstOrNull()
+                                val availableSubs = subjects.filter { it.batchId == (activeBatch?.id ?: 0L) }
+                                val activeSub = availableSubs.find { it.id == selectedSubjectId } ?: availableSubs.firstOrNull()
+                                val availableChaps = chapters.filter { it.subjectId == (activeSub?.id ?: 0L) }
+                                val activeChap = availableChaps.find { it.id == selectedChapterId } ?: availableChaps.firstOrNull()
+
                                 viewModel.importValidatedTest(
                                     testDto = res.testDto,
                                     importMode = importMode,
-                                    targetBatchId = activeChap?.batchId ?: 1L,
-                                    targetSubjectId = activeChap?.subjectId ?: 1L,
+                                    targetBatchId = activeBatch?.id ?: 1L,
+                                    targetSubjectId = activeSub?.id ?: 1L,
                                     targetChapterId = activeChap?.id ?: 1L
                                 )
                                 onBack()
