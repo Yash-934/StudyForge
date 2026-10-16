@@ -21,9 +21,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.FilePresent
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.AlertDialog
@@ -31,6 +33,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -51,7 +54,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -89,25 +97,55 @@ fun ImportCurriculumDialog(
     var targetBatchId by remember { mutableStateOf(preselectedBatchId ?: 0L) }
     var batchDropdownExpanded by remember { mutableStateOf(false) }
 
+    val coroutineScope = rememberCoroutineScope()
+    var isReadingFile by remember { mutableStateOf(false) }
+    var isValidating by remember { mutableStateOf(false) }
+
     // File picker for .json
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val content = stream.bufferedReader().use { it.readText() }
-                    jsonText = content
+            coroutineScope.launch {
+                isReadingFile = true
+                try {
+                    val content = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            stream.bufferedReader().use { it.readText() }
+                        }
+                    }
+                    if (content != null) {
+                        jsonText = content
+                        viewModel.showMessage("Loaded file (${(content.length / 1024).coerceAtLeast(1)} KB)")
+                    }
+                } catch (t: Throwable) {
+                    viewModel.showMessage("Failed to read file: ${t.localizedMessage ?: "Unknown error"}")
+                } finally {
+                    isReadingFile = false
                 }
-            } catch (e: Exception) {
-                viewModel.showMessage("Failed to read file: ${e.message}")
             }
         }
     }
 
-    // Auto-validate whenever jsonText changes
+    // Auto-validate whenever jsonText changes (debounced in background)
     LaunchedEffect(jsonText) {
-        validationResult = viewModel.validateCurriculumJson(jsonText)
+        if (jsonText.isBlank()) {
+            validationResult = null
+            isValidating = false
+            return@LaunchedEffect
+        }
+        isValidating = true
+        delay(200)
+        try {
+            validationResult = viewModel.validateCurriculumJson(jsonText)
+        } catch (t: Throwable) {
+            validationResult = CurriculumValidationResult(
+                isValid = false,
+                errorMessage = "Parse error: ${t.localizedMessage ?: "Failed to parse JSON"}"
+            )
+        } finally {
+            isValidating = false
+        }
     }
 
     AlertDialog(
@@ -227,7 +265,7 @@ fun ImportCurriculumDialog(
                     }
                 }
 
-                // File Upload & Paste quick actions
+                // File Upload, Paste & Clear quick actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -239,16 +277,21 @@ fun ImportCurriculumDialog(
                     ) {
                         Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Open JSON File")
+                        Text("Open File")
                     }
 
                     OutlinedButton(
                         onClick = {
-                            val clip = clipboardManager.getText()?.text
-                            if (!clip.isNullOrBlank()) {
-                                jsonText = clip
-                            } else {
-                                viewModel.showMessage("Clipboard is empty")
+                            try {
+                                val clip = clipboardManager.getText()?.text
+                                if (!clip.isNullOrBlank()) {
+                                    jsonText = clip
+                                    viewModel.showMessage("Pasted ${(clip.length / 1024).coerceAtLeast(1)} KB from clipboard")
+                                } else {
+                                    viewModel.showMessage("Clipboard is empty")
+                                }
+                            } catch (t: Throwable) {
+                                viewModel.showMessage("Failed to paste: ${t.localizedMessage}")
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -256,22 +299,111 @@ fun ImportCurriculumDialog(
                     ) {
                         Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Paste Clipboard")
+                        Text("Paste")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            jsonText = ""
+                            validationResult = null
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Clear")
                     }
                 }
 
-                // JSON Content Text Field with monospaced font
-                OutlinedTextField(
-                    value = jsonText,
-                    onValueChange = { jsonText = it },
-                    label = { Text("Curriculum JSON Code") },
-                    placeholder = { Text("Paste your batch and subjects JSON here...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 140.dp, max = 240.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-                )
+                // Loading / Parsing indicator
+                if (isReadingFile || isValidating) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text(
+                            text = if (isReadingFile) "Reading large curriculum JSON from disk..." else "Analyzing curriculum structure in background...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                // High-performance payload display: protect Compose from massive text OOM/ANR
+                if (jsonText.length <= 15_000) {
+                    OutlinedTextField(
+                        value = jsonText,
+                        onValueChange = { jsonText = it },
+                        label = { Text("Curriculum JSON Code") },
+                        placeholder = { Text("Paste your batch and subjects JSON here...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 140.dp, max = 220.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                    )
+                } else {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.FilePresent,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Large Curriculum Payload Loaded",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${(jsonText.length / 1024).coerceAtLeast(1)} KB • ~${jsonText.count { it == '\n' } + 1} lines in memory",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "⚡ Full file is held safely in background memory. Text editor is bypassed for files > 15 KB to prevent phone freezing. Preview:",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 130.dp)
+                            ) {
+                                val previewSnippet = remember(jsonText) {
+                                    val lines = jsonText.lines()
+                                    lines.take(20).joinToString("\n") + if (lines.size > 20) "\n... [${lines.size - 20} more lines ready for import]" else ""
+                                }
+                                Text(
+                                    text = previewSnippet,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp
+                                    ),
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .verticalScroll(rememberScrollState())
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Validation Status Card
                 val res = validationResult

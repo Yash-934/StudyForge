@@ -246,4 +246,30 @@ class StudyForgeBusinessLogicTest {
         assertNotNull(waveOptics)
         assertEquals(2, waveOptics?.questions?.size)
     }
+
+    @Test
+    fun testBulkQuestionBankParser_largePayload_parsesWithoutError() {
+        // Generate 300 questions across 10 chapters
+        val jsonBuilder = StringBuilder()
+        jsonBuilder.append("{\n\"batch\": \"Large Question Bank Batch\",\n\"chapters\": [\n")
+        for (c in 1..10) {
+            jsonBuilder.append("  {\n    \"name\": \"Chapter $c\",\n    \"questions\": [\n")
+            for (q in 1..30) {
+                jsonBuilder.append("      {\n")
+                jsonBuilder.append("        \"question\": \"Question $q in Chapter $c text content for testing performance\",\n")
+                jsonBuilder.append("        \"type\": \"mcq\",\n")
+                jsonBuilder.append("        \"options\": [\"Opt A\", \"Opt B\", \"Opt C\", \"Opt D\"],\n")
+                jsonBuilder.append("        \"correctAnswer\": \"Opt A\",\n")
+                jsonBuilder.append("        \"explanation\": \"Detailed solution and explanation string for question $q\"\n")
+                jsonBuilder.append("      }${if (q < 30) "," else ""}\n")
+            }
+            jsonBuilder.append("    ]\n  }${if (c < 10) "," else ""}\n")
+        }
+        jsonBuilder.append("]}\n")
+
+        val result = BulkQuestionBankParser.parseAndValidate(jsonBuilder.toString())
+        assertTrue(result.isValid)
+        assertEquals(10, result.totalChaptersCount)
+        assertEquals(300, result.totalQuestionsCount)
+    }
 }

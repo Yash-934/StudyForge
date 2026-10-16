@@ -454,10 +454,14 @@ object BulkQuestionBankParser {
                 totalQuestionsCount = totalQ,
                 totalChaptersCount = chapterGroups.size
             )
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             return BulkQuestionBankValidationResult(
                 isValid = false,
-                errorMessage = "Invalid JSON syntax: ${e.message ?: "Failed to parse JSON"}"
+                errorMessage = if (t is OutOfMemoryError) {
+                    "File is too large for device memory to parse in one pass. Try splitting into smaller chapter files."
+                } else {
+                    "Invalid JSON syntax: ${t.localizedMessage ?: "Failed to parse JSON"}"
+                }
             )
         }
     }
@@ -474,8 +478,9 @@ object BulkQuestionBankParser {
     }
 
     private fun parseSingleQuestion(obj: JSONObject): QuestionDto? {
-        val qText = obj.optString("question", obj.optString("questionText", obj.optString("q", obj.optString("title", "")))).trim()
-        if (qText.isBlank()) return null
+        return try {
+            val qText = obj.optString("question", obj.optString("questionText", obj.optString("q", obj.optString("title", "")))).trim()
+            if (qText.isBlank()) return null
 
         val typeStr = obj.optString("type", "mcq").lowercase().trim()
         val qType = when (typeStr) {
@@ -552,18 +557,21 @@ object BulkQuestionBankParser {
         val negMarks = obj.optDouble("negativeMarks", obj.optDouble("penalty", 0.0))
         val hint = obj.optString("hint", "").trim()
 
-        return QuestionDto(
-            type = qType,
-            question = qText,
-            options = options,
-            correctAnswers = correctAnswers,
-            marks = marks,
-            negativeMarks = negMarks,
-            explanation = expl,
-            detailedSolution = expl,
-            topic = topic,
-            difficulty = diff,
-            hint = hint
-        )
+            QuestionDto(
+                type = qType,
+                question = qText,
+                options = options,
+                correctAnswers = correctAnswers,
+                marks = marks,
+                negativeMarks = negMarks,
+                explanation = expl,
+                detailedSolution = expl,
+                topic = topic,
+                difficulty = diff,
+                hint = hint
+            )
+        } catch (_: Throwable) {
+            null
+        }
     }
 }

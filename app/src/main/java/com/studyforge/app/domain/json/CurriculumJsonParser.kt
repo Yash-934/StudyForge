@@ -239,10 +239,14 @@ object CurriculumJsonParser {
                 totalFormulasCount = totalFormulas,
                 totalQuestionsCount = totalQuestions
             )
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             return CurriculumValidationResult(
                 isValid = false,
-                errorMessage = "Invalid JSON syntax: ${e.message ?: "Could not parse JSON"}"
+                errorMessage = if (t is OutOfMemoryError) {
+                    "Curriculum file is too large for device memory. Please split chapters or reduce payload size."
+                } else {
+                    "Invalid JSON syntax: ${t.localizedMessage ?: "Could not parse JSON"}"
+                }
             )
         }
     }
@@ -256,12 +260,13 @@ object CurriculumJsonParser {
         val chapArr = obj.optJSONArray("chapters") ?: JSONArray()
 
         for (i in 0 until chapArr.length()) {
-            val item = chapArr.opt(i)
-            if (item is String) {
-                if (item.isNotBlank()) {
-                    chaptersList.add(ParsedChapterDto(name = item.trim(), orderIndex = i))
-                }
-            } else if (item is JSONObject) {
+            try {
+                val item = chapArr.opt(i)
+                if (item is String) {
+                    if (item.isNotBlank()) {
+                        chaptersList.add(ParsedChapterDto(name = item.trim(), orderIndex = i))
+                    }
+                } else if (item is JSONObject) {
                 val cName = item.optString("name", item.optString("title", "Chapter ${i + 1}"))
                 val notes = mutableListOf<ParsedNoteDto>()
                 val formulas = mutableListOf<ParsedFormulaDto>()
@@ -342,15 +347,18 @@ object CurriculumJsonParser {
                     }
                 }
 
-                chaptersList.add(
-                    ParsedChapterDto(
-                        name = cName.trim(),
-                        orderIndex = i,
-                        notes = notes,
-                        formulas = formulas,
-                        questions = questions
+                    chaptersList.add(
+                        ParsedChapterDto(
+                            name = cName.trim(),
+                            orderIndex = i,
+                            notes = notes,
+                            formulas = formulas,
+                            questions = questions
+                        )
                     )
-                )
+                }
+            } catch (_: Throwable) {
+                // Skip malformed individual chapter and continue with rest
             }
         }
 

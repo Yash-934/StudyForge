@@ -82,7 +82,7 @@ object TestJsonParser {
 
         val rootObj: JSONObject = try {
             JSONObject(jsonString)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             // Could it be an array of questions directly?
             try {
                 val array = JSONArray(jsonString)
@@ -90,12 +90,12 @@ object TestJsonParser {
                     put("title", "Imported Questions")
                     put("questions", array)
                 }
-            } catch (ex2: Exception) {
+            } catch (ex2: Throwable) {
                 return TestValidationResult(
                     totalQuestionsCount = 0,
                     validQuestionsCount = 0,
                     invalidQuestionsCount = 0,
-                    issues = listOf(ValidationIssue(0, "", "Invalid JSON format: ${e.message}", isFatal = true)),
+                    issues = listOf(ValidationIssue(0, "", "Invalid JSON format: ${if (e is OutOfMemoryError) "File is too large for device memory" else (e.localizedMessage ?: "Unknown error")}", isFatal = true)),
                     testDto = TestImportDto()
                 )
             }

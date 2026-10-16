@@ -1,5 +1,9 @@
 package com.studyforge.app.ui.screens.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -18,24 +22,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,8 +45,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,456 +54,143 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import com.studyforge.app.ui.components.SectionHeader
-import com.studyforge.app.ui.components.SquircleIconBadge
-import com.studyforge.app.ui.components.StudyCard
-import com.studyforge.app.ui.theme.PurpleAccent
-import com.studyforge.app.viewmodel.StudyViewModel
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: StudyViewModel,
-    onBack: () -> Unit,
-    onNavigateToHowToUse: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onExportJson: suspend () -> String,
+    onImportRawJson: (rawJson: String) -> Unit,
+    onBack: () -> Unit
 ) {
-    val themeMode by viewModel.themeMode.collectAsState()
-    val apiKeyOverride by viewModel.geminiApiKeyOverride.collectAsState()
-
-    var customApiKey by remember(apiKeyOverride) { mutableStateOf(apiKeyOverride) }
-    var isKeyVisible by remember { mutableStateOf(false) }
-    var isTestingKey by remember { mutableStateOf(false) }
-    var testStatusMessage by remember { mutableStateOf<String?>(null) }
-    var isTestSuccess by remember { mutableStateOf(false) }
-
-    var showBackupExportDialog by remember { mutableStateOf(false) }
-    var exportedJson by remember { mutableStateOf("") }
-    var showRestoreDialog by remember { mutableStateOf(false) }
-    var restoreInputJson by remember { mutableStateOf("") }
-
-    val coroutineScope = rememberCoroutineScope()
-    val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
-    // File export/restore launchers
+    var isExporting by remember { mutableStateOf(false) }
+    var showBackupExportDialog by remember { mutableStateOf(false) }
+    var exportedJsonData by remember { mutableStateOf("") }
+    var showRestoreDialog by remember { mutableStateOf(false) }
+    var restorePastedJson by remember { mutableStateOf("") }
+
+    // SAF file export launcher
     val exportJsonFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            try {
-                context.contentResolver.openOutputStream(uri)?.use { stream ->
-                    stream.write(exportedJson.toByteArray())
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                            OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
+                                writer.write(exportedJsonData)
+                            }
+                        }
+                    }
+                    Toast.makeText(context, "Backup file saved successfully!", Toast.LENGTH_LONG).show()
+                    showBackupExportDialog = false
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error saving file: ${e.message}", Toast.LENGTH_LONG).show()
                 }
-                viewModel.showMessage("Backup successfully exported to JSON file!")
-                showBackupExportDialog = false
-            } catch (e: Exception) {
-                viewModel.showMessage("Export failed: ${e.message}")
             }
         }
     }
 
+    // SAF file restore launcher
     val restoreJsonFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val jsonStr = stream.bufferedReader().use { it.readText() }
-                    if (jsonStr.isBlank()) {
-                        viewModel.showMessage("Selected file is empty!")
-                        return@use
-                    }
-                    coroutineScope.launch {
-                        val res = viewModel.restoreFullBackup(jsonStr)
-                        if (res.isSuccess) {
-                            viewModel.showMessage("Database restored successfully from JSON file!")
-                            showRestoreDialog = false
-                        } else {
-                            viewModel.showMessage("Restore failed: ${res.exceptionOrNull()?.message}")
+            scope.launch {
+                try {
+                    val content = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                            InputStreamReader(inputStream, Charsets.UTF_8).use { reader ->
+                                reader.readText()
+                            }
                         }
                     }
+                    if (!content.isNullOrBlank()) {
+                        onImportRawJson(content)
+                        Toast.makeText(context, "Restoring data from file...", Toast.LENGTH_SHORT).show()
+                        showRestoreDialog = false
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error opening file: ${e.message}", Toast.LENGTH_LONG).show()
                 }
-            } catch (e: Exception) {
-                viewModel.showMessage("Failed to read restore file: ${e.message}")
             }
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
-        modifier = modifier.fillMaxSize()
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // How to Use StudyForge & JSON Guide Card
-            StudyCard(
-                shape = RoundedCornerShape(22.dp),
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onNavigateToHowToUse() }
-            ) {
-                Row(
-                    modifier = Modifier.padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        SquircleIconBadge(
-                            icon = Icons.Default.MenuBook,
-                            tint = MaterialTheme.colorScheme.primary,
-                            size = 48.dp,
-                            iconSize = 24.dp
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = "How to Use StudyForge",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Complete user guide & JSON import format examples",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    SquircleIconBadge(
-                        icon = Icons.AutoMirrored.Filled.ArrowForward,
-                        tint = MaterialTheme.colorScheme.primary,
-                        size = 36.dp,
-                        iconSize = 18.dp
-                    )
-                }
-            }
-
-            // Theme Mode
-            SectionHeader(title = "Appearance & Theme")
-            StudyCard(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SquircleIconBadge(
-                            icon = Icons.Default.Palette,
-                            tint = MaterialTheme.colorScheme.primary,
-                            size = 38.dp,
-                            iconSize = 20.dp
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text("App Color Theme", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("SYSTEM" to "System", "LIGHT" to "Light", "DARK" to "Dark").forEach { (mode, label) ->
-                            FilterChip(
-                                selected = themeMode == mode,
-                                onClick = { viewModel.setThemeMode(mode) },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // AI Configuration
-            SectionHeader(title = "AI Study Assistant (Gemini)")
-            StudyCard(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SquircleIconBadge(
-                            icon = Icons.Default.AutoAwesome,
-                            tint = PurpleAccent,
-                            size = 38.dp,
-                            iconSize = 20.dp,
-                            backgroundColor = PurpleAccent.copy(alpha = 0.12f)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text("Gemini API Key Configuration", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Configured via AI Studio Secrets panel or overridden here. The app is 100% offline-first and only makes network calls when you explicitly trigger an AI feature.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = customApiKey,
-                        onValueChange = {
-                            customApiKey = it
-                            testStatusMessage = null
-                        },
-                        label = { Text("Gemini API Key Override") },
-                        placeholder = { Text("Paste AI Studio Gemini Key (AIzaSy...)") },
-                        singleLine = true,
-                        visualTransformation = if (isKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = {
-                            IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
-                                Icon(
-                                    imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (isKeyVisible) "Hide API Key" else "Show API Key"
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                viewModel.setGeminiApiKeyOverride(customApiKey.trim())
-                                isKeyVisible = false
-                                testStatusMessage = null
-                                Toast.makeText(context, "Gemini API key saved & secured (hidden)!", Toast.LENGTH_SHORT).show()
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Save Key")
-                        }
-
-                        if (customApiKey.isNotBlank()) {
-                            OutlinedButton(
-                                onClick = {
-                                    customApiKey = ""
-                                    viewModel.setGeminiApiKeyOverride("")
-                                    testStatusMessage = null
-                                    Toast.makeText(context, "API Key cleared", Toast.LENGTH_SHORT).show()
-                                },
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(imageVector = Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Clear")
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Test Key Connection Button
-                    OutlinedButton(
-                        onClick = {
-                            if (customApiKey.isBlank() && apiKeyOverride.isBlank()) {
-                                testStatusMessage = "Please enter and save an API key first."
-                                isTestSuccess = false
-                                return@OutlinedButton
-                            }
-                            isTestingKey = true
-                            testStatusMessage = null
-                            coroutineScope.launch {
-                                val result = viewModel.aiAssistant.explainConcept("Calculus", "Mathematics")
-                                isTestingKey = false
-                                result.onSuccess {
-                                    testStatusMessage = "✓ Verified successfully! Connected to Gemini AI (gemini-3.8-flash)."
-                                    isTestSuccess = true
-                                }.onFailure { err ->
-                                    testStatusMessage = "Error: ${err.message ?: "Failed to connect"}"
-                                    isTestSuccess = false
-                                }
-                            }
-                        },
-                        enabled = !isTestingKey,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (isTestingKey) {
-                            Text("Testing Connection...")
-                        } else {
-                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Test Gemini API Connection")
-                        }
-                    }
-
-                    if (testStatusMessage != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = testStatusMessage!!,
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = if (isTestSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-
-            // Backup & Restore
-            SectionHeader(title = "Data Management: Backup & Restore")
-            StudyCard(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Export or restore your entire study database: batches, subjects, chapters, notes, formulas, question bank, test attempts, mistakes, revisions, timetable, and journal.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    exportedJson = viewModel.exportFullBackup()
-                                    showBackupExportDialog = true
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Export Backup")
-                        }
-
-                        OutlinedButton(
-                            onClick = { showRestoreDialog = true },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Restore Backup")
-                        }
-                    }
-                }
-            }
-
-            // About & Privacy
-            SectionHeader(title = "About & Privacy")
-            StudyCard(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SquircleIconBadge(
-                            icon = Icons.Default.Info,
-                            tint = MaterialTheme.colorScheme.primary,
-                            size = 38.dp,
-                            iconSize = 20.dp
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text("StudyForge v1.0", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Modern Personal Learning & Study Operating System.\nBuilt with Kotlin, Jetpack Compose, Material 3, and Room local database.\n\nAll notes, questions, formulas, and attempts remain 100% on your device unless you explicitly prompt Gemini AI.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-        }
-    }
-
-    // Export Dialog
+    // Export Dialog with file saving and copy options
     if (showBackupExportDialog) {
         val timeStamp = remember { SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date()) }
         val fileName = "studyforge_backup_$timeStamp.json"
 
         AlertDialog(
             onDismissRequest = { showBackupExportDialog = false },
-            title = { Text("Export Backup JSON Archive", fontWeight = FontWeight.Bold) },
+            title = { Text("Backup Archive Ready", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Your full database (${exportedJson.length} characters) is serialized. Save it directly as a .json file to bypass clipboard limits:",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "Your study database is compiled into JSON format. Choose how to save your backup:",
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                    OutlinedTextField(
-                        value = if (exportedJson.length > 250) exportedJson.take(250) + "\n... [Total: ${exportedJson.length} chars]" else exportedJson,
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        exportJsonFileLauncher.launch(fileName)
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Size: ${exportedJsonData.length / 1024} KB\nDirect file saving is completely immune to clipboard limits for large question banks.",
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(10.dp)
+                        )
                     }
-                ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Save JSON File")
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+
+                    Button(
+                        onClick = { exportJsonFileLauncher.launch(fileName) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Save to JSON File (Recommended)")
+                    }
+
                     OutlinedButton(
                         onClick = {
-                            clipboardManager.setText(AnnotatedString(exportedJson))
-                            viewModel.showMessage("Backup copied to clipboard!")
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("StudyForge Backup", exportedJsonData)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Backup copied to clipboard!", Toast.LENGTH_SHORT).show()
                             showBackupExportDialog = false
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Copy")
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Copy to Clipboard")
                     }
-                    TextButton(onClick = { showBackupExportDialog = false }) { Text("Cancel") }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showBackupExportDialog = false }) {
+                    Text("Close")
                 }
             }
         )
@@ -514,68 +200,171 @@ fun SettingsScreen(
     if (showRestoreDialog) {
         AlertDialog(
             onDismissRequest = { showRestoreDialog = false },
-            title = { Text("Restore Database Backup", fontWeight = FontWeight.Bold) },
+            title = { Text("Restore Backup", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Select a .json backup file from storage or paste JSON code below:",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "Select a backup file from device storage or paste a backup JSON string:",
+                        style = MaterialTheme.typography.bodyMedium
                     )
 
                     Button(
-                        onClick = {
-                            restoreJsonFileLauncher.launch(arrayOf("application/json", "*/*", "text/plain"))
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        onClick = { restoreJsonFileLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Select JSON File from Storage")
+                        Text("Choose .json Backup File")
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f))
-                        Text("OR PASTE JSON", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f))
-                    }
+                    Text("— OR —", modifier = Modifier.align(Alignment.CenterHorizontally), fontSize = 12.sp)
 
                     OutlinedTextField(
-                        value = restoreInputJson,
-                        onValueChange = { restoreInputJson = it },
-                        placeholder = { Text("Paste JSON backup code here...") },
-                        minLines = 3,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                        value = restorePastedJson,
+                        onValueChange = { restorePastedJson = it },
+                        placeholder = { Text("Paste JSON backup here...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        shape = RoundedCornerShape(10.dp)
                     )
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            val res = viewModel.restoreFullBackup(restoreInputJson)
-                            if (res.isSuccess) {
-                                viewModel.showMessage("Database restored successfully!")
-                                showRestoreDialog = false
-                            } else {
-                                viewModel.showMessage("Restore failed: ${res.exceptionOrNull()?.message}")
-                            }
+                if (restorePastedJson.isNotBlank()) {
+                    Button(
+                        onClick = {
+                            onImportRawJson(restorePastedJson)
+                            showRestoreDialog = false
                         }
-                    },
-                    enabled = restoreInputJson.isNotBlank()
-                ) {
-                    Text("Restore Pasted JSON")
+                    ) {
+                        Text("Restore Pasted")
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRestoreDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showRestoreDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings & Backup", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scrollState)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Backup & Restore Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Storage, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Data Backup & Restore", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Export and import your study batches, subjects, chapters, and questions via JSON files safely.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    isExporting = true
+                                    try {
+                                        exportedJsonData = onExportJson()
+                                        showBackupExportDialog = true
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Export error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    } finally {
+                                        isExporting = false
+                                    }
+                                }
+                            },
+                            enabled = !isExporting,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            if (isExporting) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
+                            } else {
+                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Export")
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { showRestoreDialog = true },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore")
+                        }
+                    }
+                }
+            }
+
+            // About & LaTeX Formatting Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Formatting & LaTeX Engine", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "• LaTeX math formulas: \$E=mc^2\$ or block math \$\\$\\frac{a}{b}\$\$\n" +
+                            "• KaTeX & Greek symbols: \\alpha, \\beta, \\theta, \\pi, \\sigma, \\Delta\n" +
+                            "• Markdown: **bold**, *italic*, bullet lists, numbered lists\n" +
+                            "• Tables: | Header 1 | Header 2 | with horizontal scrolling\n" +
+                            "• Explanations: Rendered in a clean, modern flat rounded container without 3D shadows",
+                        style = MaterialTheme.typography.bodySmall,
+                        lineHeight = 20.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }

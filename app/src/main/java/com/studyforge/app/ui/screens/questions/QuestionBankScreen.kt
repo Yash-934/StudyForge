@@ -1,11 +1,13 @@
 package com.studyforge.app.ui.screens.questions
 
+import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,36 +19,34 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.Quiz
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,454 +54,399 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.studyforge.app.data.local.entities.BatchEntity
+import com.studyforge.app.data.local.entities.ChapterEntity
 import com.studyforge.app.data.local.entities.QuestionEntity
-import com.studyforge.app.domain.model.Difficulty
-import com.studyforge.app.domain.model.QuestionType
-import com.studyforge.app.ui.components.DifficultyBadge
-import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.data.local.entities.SubjectEntity
+import com.studyforge.app.ui.components.EmptyStateView
 import com.studyforge.app.ui.components.ExplanationBox
 import com.studyforge.app.ui.components.MarkdownMathView
-import com.studyforge.app.ui.components.OptionMathText
-import com.studyforge.app.ui.components.StudyCard
-import androidx.compose.foundation.border
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material3.Surface
-import com.studyforge.app.ui.theme.SuccessGreen
-import com.studyforge.app.viewmodel.StudyViewModel
-import org.json.JSONArray
+import com.studyforge.app.ui.components.StudySearchBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuestionBankScreen(
-    chapterId: Long,
-    subjectId: Long,
-    viewModel: StudyViewModel,
-    onBack: () -> Unit,
-    onNavigateToCreateQuestion: (Long) -> Unit,
-    onNavigateToEditQuestion: (Long, Long) -> Unit,
-    onNavigateToJsonImport: () -> Unit = {},
-    modifier: Modifier = Modifier
+    batches: List<BatchEntity>,
+    subjects: List<SubjectEntity>,
+    chapters: List<ChapterEntity>,
+    questions: List<QuestionEntity>,
+    selectedBatchId: Long?,
+    selectedSubjectId: Long?,
+    selectedChapterId: Long?,
+    isImporting: Boolean,
+    importProgress: String,
+    importError: String?,
+    importSuccess: String?,
+    onSelectBatch: (Long?) -> Unit,
+    onSelectSubject: (Long?) -> Unit,
+    onSelectChapter: (Long?) -> Unit,
+    onToggleBookmark: (QuestionEntity) -> Unit,
+    onStartRevision: (chapterId: Long, chapterName: String) -> Unit,
+    onImportRawJson: (targetBatchId: Long?, rawJson: String) -> Unit,
+    onImportFileUri: (targetBatchId: Long?, uri: Uri) -> Unit,
+    onClearImportStatus: () -> Unit
 ) {
-    val questions by viewModel.questions.collectAsState()
-    val chapters by viewModel.chapters.collectAsState()
-    val subjects by viewModel.subjects.collectAsState()
-    val chapter = chapters.find { it.id == chapterId }
-
-    val rawList = remember(questions, chapterId, subjectId) {
-        when {
-            chapterId > 0 -> questions.filter { it.chapterId == chapterId }
-            subjectId > 0 -> questions.filter { it.subjectId == subjectId }
-            else -> questions
-        }
-    }
-
     var searchQuery by remember { mutableStateOf("") }
-    var debouncedQuery by remember { mutableStateOf("") }
-    var selectedDifficulty by remember { mutableStateOf<Difficulty?>(null) }
-    var selectedType by remember { mutableStateOf<QuestionType?>(null) }
-    var filterUnsolvedOnly by remember { mutableStateOf(false) }
-    var showBulkImportDialog by remember { mutableStateOf(false) }
+    var filterOnlyBookmarked by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(searchQuery) {
-        if (searchQuery.isBlank()) {
-            debouncedQuery = ""
-        } else {
-            kotlinx.coroutines.delay(200)
-            debouncedQuery = searchQuery
+    // Filter questions
+    val filteredQuestions = remember(questions, searchQuery, filterOnlyBookmarked) {
+        questions.filter { q ->
+            val matchesSearch = searchQuery.isBlank() ||
+                q.questionText.contains(searchQuery, ignoreCase = true) ||
+                q.topic.contains(searchQuery, ignoreCase = true) ||
+                q.options.any { it.contains(searchQuery, ignoreCase = true) }
+            val matchesBookmark = !filterOnlyBookmarked || q.isBookmarked
+            matchesSearch && matchesBookmark
         }
     }
 
-    val filteredQuestions = remember(rawList, debouncedQuery, selectedDifficulty, selectedType, filterUnsolvedOnly) {
-        if (debouncedQuery.isBlank() && selectedDifficulty == null && selectedType == null && !filterUnsolvedOnly) {
-            rawList
-        } else {
-            rawList.filter { q ->
-                val matchesSearch = debouncedQuery.isBlank() ||
-                    q.questionText.contains(debouncedQuery, ignoreCase = true) ||
-                    q.topic.contains(debouncedQuery, ignoreCase = true)
-                val matchesDiff = selectedDifficulty == null || q.difficulty == selectedDifficulty
-                val matchesType = selectedType == null || q.type == selectedType
-                val matchesUnsolved = !filterUnsolvedOnly || q.timesAttempted == 0
-                matchesSearch && matchesDiff && matchesType && matchesUnsolved
-            }
-        }
+    if (showImportDialog) {
+        ImportBulkQuestionBankDialog(
+            batches = batches,
+            preselectedBatchId = selectedBatchId,
+            isImporting = isImporting,
+            progressMessage = importProgress,
+            errorMessage = importError,
+            successMessage = importSuccess,
+            onDismiss = {
+                showImportDialog = false
+                onClearImportStatus()
+            },
+            onImportRawJson = onImportRawJson,
+            onImportFileUri = onImportFileUri
+        )
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column(modifier = Modifier.padding(end = 4.dp)) {
-                        Text(
-                            text = "Question Bank",
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                        if (chapter != null) {
-                            Text(
-                                text = chapter.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    Text("Question Bank", fontWeight = FontWeight.Bold)
                 },
                 actions = {
-                    IconButton(onClick = { showBulkImportDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Layers,
-                            contentDescription = "Bulk Import",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    IconButton(onClick = { showImportDialog = true }) {
+                        Icon(Icons.Default.FileUpload, contentDescription = "Import Questions")
                     }
-                    IconButton(onClick = onNavigateToJsonImport) {
-                        Icon(
-                            imageVector = Icons.Default.UploadFile,
-                            contentDescription = "Import JSON Questions",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onNavigateToCreateQuestion(chapterId) },
+            ExtendedFloatingActionButton(
+                onClick = { showImportDialog = true },
+                icon = { Icon(Icons.Default.FileUpload, contentDescription = null) },
+                text = { Text("Import Q-Bank") },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Question")
-            }
-        },
-        modifier = modifier.fillMaxSize()
+            )
+        }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search question text, topic, formula...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
+            // Search Bar
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                StudySearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = "Search questions, topics, formulas..."
+                )
+            }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Filter Chips Row
+            // Filter Chips (Batches, Subjects, Chapters)
+            val chipScrollState = rememberScrollState()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .horizontalScroll(chipScrollState)
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Bookmarked toggle chip
                 FilterChip(
-                    selected = filterUnsolvedOnly,
-                    onClick = { filterUnsolvedOnly = !filterUnsolvedOnly },
-                    label = { Text("Unsolved") }
+                    selected = filterOnlyBookmarked,
+                    onClick = { filterOnlyBookmarked = !filterOnlyBookmarked },
+                    label = { Text("Bookmarked") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = if (filterOnlyBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 )
-                Difficulty.values().forEach { diff ->
+
+                // Batch filter chip
+                batches.forEach { batch ->
                     FilterChip(
-                        selected = selectedDifficulty == diff,
-                        onClick = { selectedDifficulty = if (selectedDifficulty == diff) null else diff },
-                        label = { Text(diff.displayName) }
-                    )
-                }
-                QuestionType.values().take(4).forEach { qType ->
-                    FilterChip(
-                        selected = selectedType == qType,
-                        onClick = { selectedType = if (selectedType == qType) null else qType },
-                        label = { Text(qType.displayName) }
+                        selected = selectedBatchId == batch.id,
+                        onClick = {
+                            if (selectedBatchId == batch.id) onSelectBatch(null) else onSelectBatch(batch.id)
+                        },
+                        label = { Text(batch.name) }
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (filteredQuestions.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            // If Batch is selected, show Subject Chips
+            if (subjects.isNotEmpty()) {
+                val subScrollState = rememberScrollState()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(subScrollState)
+                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    EmptyState(
-                        icon = Icons.Default.Quiz,
-                        title = "No Questions Found",
-                        message = "Add questions to your Question Bank or import all chapters questions at once via JSON.",
-                        actionLabel = "Add Question",
-                        onAction = { onNavigateToCreateQuestion(chapterId) }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
+                    subjects.forEach { subject ->
+                        FilterChip(
+                            selected = selectedSubjectId == subject.id,
+                            onClick = {
+                                if (selectedSubjectId == subject.id) onSelectSubject(null) else onSelectSubject(subject.id)
+                            },
+                            label = { Text(subject.name) }
+                        )
+                    }
+                }
+            }
+
+            // Practice Chapter Button if a Chapter is selected
+            if (selectedChapterId != null) {
+                val ch = chapters.find { it.id == selectedChapterId }
+                if (ch != null) {
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Button(
-                            onClick = { showBulkImportDialog = true },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1.1f)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(imageVector = Icons.Default.Layers, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Import All Chapters (JSON)")
-                        }
-                        OutlinedButton(
-                            onClick = onNavigateToJsonImport,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(0.9f)
-                        ) {
-                            Icon(imageVector = Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Single JSON")
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = ch.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "${filteredQuestions.size} questions available",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                            Button(
+                                onClick = { onStartRevision(ch.id, ch.name) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Revise MCQs")
+                            }
                         }
                     }
                 }
+            }
+
+            // Question Count Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${filteredQuestions.size} Questions",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Question List
+            if (filteredQuestions.isEmpty()) {
+                EmptyStateView(
+                    icon = Icons.Default.QuestionMark,
+                    title = "No Questions Found",
+                    description = if (searchQuery.isNotBlank()) "No matching questions found for '$searchQuery'" else "Import questions from a JSON file or select a different batch.",
+                    modifier = Modifier.weight(1f)
+                )
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(filteredQuestions, key = { it.id }) { q ->
-                        QuestionBankCard(
-                            question = q,
-                            onEdit = { onNavigateToEditQuestion(q.chapterId, q.id) },
-                            onDelete = { viewModel.deleteQuestion(q) }
+                    items(filteredQuestions, key = { it.id }) { question ->
+                        QuestionBankItemCard(
+                            question = question,
+                            onToggleBookmark = { onToggleBookmark(question) }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(72.dp)) }
+                    item {
+                        Spacer(modifier = Modifier.height(80.dp))
+                    }
                 }
             }
         }
-    }
-
-    if (showBulkImportDialog) {
-        ImportBulkQuestionBankDialog(
-            viewModel = viewModel,
-            preselectedBatchId = chapter?.batchId ?: subjects.find { it.id == subjectId }?.batchId,
-            preselectedSubjectId = if (subjectId > 0L) subjectId else chapter?.subjectId,
-            onDismiss = { showBulkImportDialog = false },
-            onSuccess = { summary ->
-                showBulkImportDialog = false
-            }
-        )
     }
 }
 
 @Composable
-fun QuestionBankCard(
+fun QuestionBankItemCard(
     question: QuestionEntity,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onToggleBookmark: () -> Unit
 ) {
-    var showExplanation by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
 
-    val optionsList = remember(question.optionsJson) {
-        try {
-            val arr = JSONArray(question.optionsJson)
-            (0 until arr.length()).map { arr.optString(it) }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    val correctList = remember(question.correctAnswersJson) {
-        try {
-            val arr = JSONArray(question.correctAnswersJson)
-            (0 until arr.length()).map { arr.optString(it) }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    val hasExplanation = question.explanation.isNotBlank() || question.detailedSolution.isNotBlank()
-
-    StudyCard(
-        shape = RoundedCornerShape(20.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header Row: Topic, Difficulty, Bookmark
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    DifficultyBadge(difficulty = question.difficulty)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${question.type.displayName} • +${question.marks} / -${question.negativeMarks}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = question.difficulty.uppercase(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    if (question.topic.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = question.topic,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
-                Row {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
-                    }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
-                    }
+
+                IconButton(onClick = onToggleBookmark, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = if (question.isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                        contentDescription = "Bookmark",
+                        tint = if (question.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            MarkdownMathView(markdownText = question.questionText)
+            // Question Statement with LaTeX / Markdown
+            MarkdownMathView(
+                text = question.questionText,
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-            if (optionsList.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                optionsList.forEachIndexed { idx, opt ->
-                    val letter = ('A' + idx).toChar()
-                    val isCorrect = correctList.any { ans ->
-                        ans.equals(idx.toString(), ignoreCase = true) ||
-                        ans.equals(letter.toString(), ignoreCase = true) ||
-                        ans.trim().equals(opt.trim(), ignoreCase = true)
-                    }
+            Spacer(modifier = Modifier.height(10.dp))
 
-                    if (isCorrect) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = SuccessGreen.copy(alpha = 0.12f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 3.dp)
-                                .border(1.5.dp, SuccessGreen, RoundedCornerShape(12.dp))
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Correct Option",
-                                    tint = SuccessGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "$letter) ",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = SuccessGreen
-                                )
-                                Box(modifier = Modifier.weight(1f)) {
-                                    OptionMathText(
-                                        text = opt,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                        color = SuccessGreen,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "$letter) ",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Box(modifier = Modifier.weight(1f)) {
-                                OptionMathText(
-                                    text = opt,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-                    }
-                }
-            } else if (correctList.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = SuccessGreen.copy(alpha = 0.12f),
-                    modifier = Modifier.border(1.dp, SuccessGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                ) {
+            // Options Preview
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                question.options.forEachIndexed { idx, optText ->
+                    val isCorrect = idx == question.correctOptionIndex
+                    val letter = ('A' + idx).toString()
+
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (expanded && isCorrect) Color(0xFFE8F5E9)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = SuccessGreen,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Correct Answer: ${correctList.joinToString(", ")}",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                            color = SuccessGreen
+                            text = "$letter. ",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = if (expanded && isCorrect) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MarkdownMathView(
+                            text = optText,
+                            fontSize = 13.sp,
+                            color = if (expanded && isCorrect) Color(0xFF1B5E20) else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
             }
 
-            if (question.topic.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Topic: ${question.topic}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            if (hasExplanation) {
-                Spacer(modifier = Modifier.height(8.dp))
+            // Expand Explanation Button
+            if (question.explanation.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { showExplanation = !showExplanation }
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded }
                         .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(
+                        text = if (expanded) "Hide Solution" else "View Solution & Explanation",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
                     Icon(
-                        imageVector = Icons.Default.Lightbulb,
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (showExplanation) "Hide Explanation" else "Show Fast Revision Explanation",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                if (showExplanation) {
-                    val explanationText = question.explanation.ifBlank { question.detailedSolution }
-                    if (explanationText.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        ExplanationBox(
-                            explanation = explanationText,
-                            topic = question.topic.ifBlank { null }
-                        )
-                    }
+                if (expanded) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    ExplanationBox(
+                        explanation = question.explanation,
+                        topic = question.topic
+                    )
                 }
             }
         }
