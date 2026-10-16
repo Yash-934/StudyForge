@@ -15,15 +15,18 @@ on:
     inputs:
       tag_name:
         description: 'Release Tag (e.g. v1.0.0)'
-        required: true
+        required: false
+        type: string
         default: 'v1.0.0'
       release_title:
         description: 'Release Title'
         required: false
+        type: string
         default: 'StudyForge Release'
       release_notes:
         description: 'Release Notes / Description'
         required: false
+        type: string
         default: 'Production release of StudyForge Study Operating System.'
 
 permissions:
