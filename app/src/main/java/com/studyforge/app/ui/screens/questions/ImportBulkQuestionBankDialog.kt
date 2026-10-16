@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,7 +27,6 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.FilePresent
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Layers
@@ -38,7 +36,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,12 +54,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -142,56 +134,25 @@ fun ImportBulkQuestionBankDialog(
     var batchDropdownExpanded by remember { mutableStateOf(false) }
     var subjectDropdownExpanded by remember { mutableStateOf(false) }
 
-    val coroutineScope = rememberCoroutineScope()
-    var isReadingFile by remember { mutableStateOf(false) }
-    var isValidating by remember { mutableStateOf(false) }
-    var showAllChapters by remember { mutableStateOf(false) }
-
     // File picker launcher
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            coroutineScope.launch {
-                isReadingFile = true
-                try {
-                    val content = withContext(Dispatchers.IO) {
-                        context.contentResolver.openInputStream(uri)?.use { stream ->
-                            stream.bufferedReader().use { it.readText() }
-                        }
-                    }
-                    if (content != null) {
-                        jsonText = content
-                        viewModel.showMessage("Loaded file (${(content.length / 1024).coerceAtLeast(1)} KB)")
-                    }
-                } catch (t: Throwable) {
-                    viewModel.showMessage("Failed to read file: ${t.localizedMessage ?: "Unknown error"}")
-                } finally {
-                    isReadingFile = false
+            try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val content = stream.bufferedReader().use { it.readText() }
+                    jsonText = content
                 }
+            } catch (e: Exception) {
+                viewModel.showMessage("Failed to read file: ${e.message}")
             }
         }
     }
 
-    // Auto-validate whenever jsonText changes (debounced in background)
+    // Auto-validate whenever jsonText changes
     LaunchedEffect(jsonText) {
-        if (jsonText.isBlank()) {
-            validationResult = null
-            isValidating = false
-            return@LaunchedEffect
-        }
-        isValidating = true
-        delay(200)
-        try {
-            validationResult = viewModel.validateBulkQuestionBankJson(jsonText)
-        } catch (t: Throwable) {
-            validationResult = BulkQuestionBankValidationResult(
-                isValid = false,
-                errorMessage = "Parse error: ${t.localizedMessage ?: "Failed to process JSON"}"
-            )
-        } finally {
-            isValidating = false
-        }
+        validationResult = viewModel.validateBulkQuestionBankJson(jsonText)
     }
 
     val availableSubjectsForBatch = remember(selectedBatchId, subjects) {
@@ -403,16 +364,11 @@ fun ImportBulkQuestionBankDialog(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            try {
-                                val clip = clipboardManager.getText()?.text
-                                if (!clip.isNullOrBlank()) {
-                                    jsonText = clip
-                                    viewModel.showMessage("Pasted ${(clip.length / 1024).coerceAtLeast(1)} KB from clipboard")
-                                } else {
-                                    viewModel.showMessage("Clipboard is empty.")
-                                }
-                            } catch (t: Throwable) {
-                                viewModel.showMessage("Failed to paste: ${t.localizedMessage}")
+                            val clip = clipboardManager.getText()?.text
+                            if (!clip.isNullOrBlank()) {
+                                jsonText = clip
+                            } else {
+                                viewModel.showMessage("Clipboard is empty.")
                             }
                         },
                         shape = RoundedCornerShape(10.dp),
@@ -436,10 +392,7 @@ fun ImportBulkQuestionBankDialog(
                     }
 
                     OutlinedButton(
-                        onClick = {
-                            jsonText = ""
-                            validationResult = null
-                        },
+                        onClick = { jsonText = "" },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
@@ -450,97 +403,21 @@ fun ImportBulkQuestionBankDialog(
                     }
                 }
 
-                // Loading / Parsing indicator
-                if (isReadingFile || isValidating) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        Text(
-                            text = if (isReadingFile) "Reading large JSON file from disk..." else "Analyzing & validating questions in background...",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                // High-performance payload display: protect Compose from massive text OOM/ANR
-                if (jsonText.length <= 15_000) {
-                    OutlinedTextField(
-                        value = jsonText,
-                        onValueChange = { jsonText = it },
-                        label = { Text("Multi-Chapter JSON") },
-                        placeholder = { Text("Paste JSON with chapters and question lists...") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp
-                        )
+                // JSON Text Editor
+                OutlinedTextField(
+                    value = jsonText,
+                    onValueChange = { jsonText = it },
+                    label = { Text("Multi-Chapter JSON") },
+                    placeholder = { Text("Paste JSON with chapters and question lists...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp
                     )
-                } else {
-                    Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.FilePresent,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Large JSON Payload Loaded",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "${(jsonText.length / 1024).coerceAtLeast(1)} KB • ~${jsonText.count { it == '\n' } + 1} lines in memory",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "⚡ Full file is held safely in background memory. Text editor is bypassed for files > 15 KB to prevent phone freezing. Preview:",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 130.dp)
-                            ) {
-                                val previewSnippet = remember(jsonText) {
-                                    val lines = jsonText.lines()
-                                    lines.take(20).joinToString("\n") + if (lines.size > 20) "\n... [${lines.size - 20} more lines ready for import]" else ""
-                                }
-                                Text(
-                                    text = previewSnippet,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 10.sp
-                                    ),
-                                    modifier = Modifier
-                                        .padding(8.dp)
-                                        .verticalScroll(rememberScrollState())
-                                )
-                            }
-                        }
-                    }
-                }
+                )
 
                 // Live Validation Diagnostic Feedback
                 validationResult?.let { res ->
@@ -585,8 +462,7 @@ fun ImportBulkQuestionBankDialog(
 
                                 if (showChapterPreview) {
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    val displayedGroups = if (showAllChapters) res.chapterGroups else res.chapterGroups.take(10)
-                                    displayedGroups.forEach { group ->
+                                    res.chapterGroups.forEach { group ->
                                         val existing = chapters.any { c ->
                                             c.name.equals(group.chapterName, ignoreCase = true)
                                         }
@@ -614,14 +490,6 @@ fun ImportBulkQuestionBankDialog(
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = if (existing) SuccessGreen else MaterialTheme.colorScheme.onSurfaceVariant
                                             )
-                                        }
-                                    }
-                                    if (!showAllChapters && res.chapterGroups.size > 10) {
-                                        TextButton(
-                                            onClick = { showAllChapters = true },
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text("Show all ${res.chapterGroups.size} chapters (${res.chapterGroups.size - 10} more)")
                                         }
                                     }
                                 }

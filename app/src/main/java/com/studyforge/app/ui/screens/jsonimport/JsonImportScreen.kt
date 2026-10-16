@@ -14,24 +14,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.FilePresent
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Quiz
@@ -39,8 +34,6 @@ import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,15 +60,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -142,36 +130,19 @@ fun JsonImportScreen(
         }
     }
 
-    val clipboardManager = LocalClipboardManager.current
-    val coroutineScope = rememberCoroutineScope()
-    var isReadingFile by remember { mutableStateOf(false) }
-    var isValidating by remember { mutableStateOf(false) }
-
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            coroutineScope.launch {
-                isReadingFile = true
-                try {
-                    val content = withContext(Dispatchers.IO) {
-                        context.contentResolver.openInputStream(uri)?.use { stream ->
-                            stream.bufferedReader().use { it.readText() }
-                        }
-                    }
-                    if (content != null) {
-                        jsonInput = content
-                        isValidating = true
-                        validationResult = viewModel.validateJson(content)
-                        viewModel.showMessage("Loaded file (${(content.length / 1024).coerceAtLeast(1)} KB)")
-                    }
-                } catch (t: Throwable) {
-                    viewModel.showMessage("Failed to read file: ${t.localizedMessage ?: "Unknown error"}")
-                } finally {
-                    isReadingFile = false
-                    isValidating = false
+            try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val content = stream.bufferedReader().use { it.readText() }
+                    jsonInput = content
+                    validationResult = viewModel.validateJson(content)
                 }
+            } catch (e: Exception) {
+                viewModel.showMessage("Failed to read file: ${e.message}")
             }
         }
     }
@@ -337,123 +308,19 @@ fun JsonImportScreen(
 
             if (selectedInputTab == 0) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    try {
-                                        val clip = clipboardManager.getText()?.text
-                                        if (!clip.isNullOrBlank()) {
-                                            jsonInput = clip
-                                            validationResult = null
-                                            viewModel.showMessage("Pasted ${(clip.length / 1024).coerceAtLeast(1)} KB from clipboard")
-                                        } else {
-                                            viewModel.showMessage("Clipboard is empty.")
-                                        }
-                                    } catch (t: Throwable) {
-                                        viewModel.showMessage("Failed to paste: ${t.localizedMessage}")
-                                    }
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Paste Clipboard")
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    jsonInput = ""
-                                    validationResult = null
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Clear")
-                            }
-                        }
-
-                        if (jsonInput.length <= 15_000) {
-                            OutlinedTextField(
-                                value = jsonInput,
-                                onValueChange = {
-                                    jsonInput = it
-                                    validationResult = null // Reset on edit
-                                },
-                                placeholder = { Text("Paste JSON here...") },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                        } else {
-                            Card(
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.FilePresent,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Large JSON Payload Loaded",
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                text = "${(jsonInput.length / 1024).coerceAtLeast(1)} KB • ~${jsonInput.count { it == '\n' } + 1} lines in memory",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "⚡ Text editor bypassed for payloads > 15 KB to prevent memory freezing. Preview:",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .heightIn(max = 130.dp)
-                                    ) {
-                                        val previewSnippet = remember(jsonInput) {
-                                            val lines = jsonInput.lines()
-                                            lines.take(20).joinToString("\n") + if (lines.size > 20) "\n... [${lines.size - 20} more lines ready]" else ""
-                                        }
-                                        Text(
-                                            text = previewSnippet,
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontFamily = FontFamily.Monospace,
-                                                fontSize = 10.sp
-                                            ),
-                                            modifier = Modifier
-                                                .padding(8.dp)
-                                                .verticalScroll(rememberScrollState())
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    OutlinedTextField(
+                        value = jsonInput,
+                        onValueChange = {
+                            jsonInput = it
+                            validationResult = null // Reset on edit
+                        },
+                        placeholder = { Text("Paste JSON here...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        shape = RoundedCornerShape(12.dp)
+                    )
                 }
             } else {
                 item {
@@ -483,22 +350,6 @@ fun JsonImportScreen(
                 }
             }
 
-            if (isReadingFile || isValidating) {
-                item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        Text(
-                            text = if (isReadingFile) "Reading JSON file from storage..." else "Validating test structure in background...",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
             // Validate Button
             item {
                 Row(
@@ -507,28 +358,12 @@ fun JsonImportScreen(
                 ) {
                     Button(
                         onClick = {
-                            coroutineScope.launch {
-                                isValidating = true
-                                try {
-                                    validationResult = viewModel.validateJson(jsonInput)
-                                } catch (t: Throwable) {
-                                    viewModel.showMessage("Validation error: ${t.localizedMessage}")
-                                } finally {
-                                    isValidating = false
-                                }
-                            }
+                            validationResult = viewModel.validateJson(jsonInput)
                         },
-                        enabled = !isValidating && !isReadingFile,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        if (isValidating) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Validating...")
-                        } else {
-                            Text("Validate JSON")
-                        }
+                        Text("Validate JSON")
                     }
 
                     OutlinedButton(

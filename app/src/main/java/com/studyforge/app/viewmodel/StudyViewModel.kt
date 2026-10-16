@@ -44,7 +44,6 @@ import com.studyforge.app.domain.model.TestValidationResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -756,10 +755,10 @@ class StudyViewModel(
     // -------------------------------------------------------------
     // JSON Import & Backup
     // -------------------------------------------------------------
-    suspend fun validateJson(jsonString: String): TestValidationResult = withContext(Dispatchers.Default) {
+    fun validateJson(jsonString: String): TestValidationResult {
         val result = TestJsonParser.parseAndValidate(jsonString)
         _importValidationResult.value = result
-        result
+        return result
     }
 
     fun importValidatedTest(
@@ -769,70 +768,66 @@ class StudyViewModel(
         targetSubjectId: Long,
         targetChapterId: Long
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val allBatches = repository.allBatches.first()
-                val resolvedBatchId = if (targetBatchId > 0L && allBatches.any { it.id == targetBatchId }) {
-                    targetBatchId
-                } else {
-                    allBatches.firstOrNull()?.id ?: repository.insertBatch(BatchEntity(name = "General Batch"))
-                }
+        viewModelScope.launch {
+            val allBatches = repository.allBatches.first()
+            val resolvedBatchId = if (targetBatchId > 0L && allBatches.any { it.id == targetBatchId }) {
+                targetBatchId
+            } else {
+                allBatches.firstOrNull()?.id ?: repository.insertBatch(BatchEntity(name = "General Batch"))
+            }
 
-                val existingSubjects = repository.allSubjects.first().filter { it.batchId == resolvedBatchId }
-                val resolvedSubjectId = if (targetSubjectId > 0L && existingSubjects.any { it.id == targetSubjectId }) {
-                    targetSubjectId
-                } else if (existingSubjects.isNotEmpty()) {
-                    existingSubjects.first().id
-                } else {
-                    repository.insertSubject(SubjectEntity(batchId = resolvedBatchId, name = "General Subject", iconName = "book", colorHex = "#3B82F6"))
-                }
+            val existingSubjects = repository.allSubjects.first().filter { it.batchId == resolvedBatchId }
+            val resolvedSubjectId = if (targetSubjectId > 0L && existingSubjects.any { it.id == targetSubjectId }) {
+                targetSubjectId
+            } else if (existingSubjects.isNotEmpty()) {
+                existingSubjects.first().id
+            } else {
+                repository.insertSubject(SubjectEntity(batchId = resolvedBatchId, name = "General Subject", iconName = "book", colorHex = "#3B82F6"))
+            }
 
-                val existingChapters = repository.allChapters.first().filter { it.subjectId == resolvedSubjectId && it.batchId == resolvedBatchId }
-                val resolvedChapterId = if (targetChapterId > 0L && existingChapters.any { it.id == targetChapterId }) {
-                    targetChapterId
-                } else if (existingChapters.isNotEmpty()) {
-                    existingChapters.first().id
-                } else {
-                    repository.insertChapter(ChapterEntity(subjectId = resolvedSubjectId, batchId = resolvedBatchId, name = testDto.title.ifBlank { "General Chapter" }, orderIndex = 0))
-                }
+            val existingChapters = repository.allChapters.first().filter { it.subjectId == resolvedSubjectId && it.batchId == resolvedBatchId }
+            val resolvedChapterId = if (targetChapterId > 0L && existingChapters.any { it.id == targetChapterId }) {
+                targetChapterId
+            } else if (existingChapters.isNotEmpty()) {
+                existingChapters.first().id
+            } else {
+                repository.insertChapter(ChapterEntity(subjectId = resolvedSubjectId, batchId = resolvedBatchId, name = testDto.title.ifBlank { "General Chapter" }, orderIndex = 0))
+            }
 
-                val entities = testDto.questions.map { q ->
-                    QuestionEntity(
-                        chapterId = resolvedChapterId,
-                        subjectId = resolvedSubjectId,
-                        batchId = resolvedBatchId,
-                        type = q.type,
-                        questionText = q.question,
-                        optionsJson = JSONArray(q.options).toString(),
-                        correctAnswersJson = JSONArray(q.correctAnswers).toString(),
-                        explanation = q.explanation,
-                        detailedSolution = q.detailedSolution,
-                        marks = q.marks,
-                        negativeMarks = q.negativeMarks,
-                        difficulty = q.difficulty,
-                        topic = q.topic,
-                        hint = q.hint,
-                        imageUrl = q.imageUrl,
-                        timeLimitSeconds = q.timeLimitSeconds
-                    )
-                }
-                val insertedIds = repository.insertQuestions(entities)
-                if (importMode == 1) { // As Test
-                    val test = TestEntity(
-                        title = testDto.title.ifBlank { "Imported Test" },
-                        batchId = resolvedBatchId,
-                        subjectId = resolvedSubjectId,
-                        chapterId = resolvedChapterId,
-                        durationMinutes = testDto.durationMinutes,
-                        questionIdsJson = JSONArray(insertedIds).toString()
-                    )
-                    repository.insertTest(test)
-                    showMessage("Imported ${insertedIds.size} questions as Test: ${test.title}")
-                } else {
-                    showMessage("Imported ${insertedIds.size} questions into Question Bank!")
-                }
-            } catch (t: Throwable) {
-                showMessage("Failed to import test: ${t.localizedMessage ?: "Unknown error"}")
+            val entities = testDto.questions.map { q ->
+                QuestionEntity(
+                    chapterId = resolvedChapterId,
+                    subjectId = resolvedSubjectId,
+                    batchId = resolvedBatchId,
+                    type = q.type,
+                    questionText = q.question,
+                    optionsJson = JSONArray(q.options).toString(),
+                    correctAnswersJson = JSONArray(q.correctAnswers).toString(),
+                    explanation = q.explanation,
+                    detailedSolution = q.detailedSolution,
+                    marks = q.marks,
+                    negativeMarks = q.negativeMarks,
+                    difficulty = q.difficulty,
+                    topic = q.topic,
+                    hint = q.hint,
+                    imageUrl = q.imageUrl,
+                    timeLimitSeconds = q.timeLimitSeconds
+                )
+            }
+            val insertedIds = repository.insertQuestions(entities)
+            if (importMode == 1) { // As Test
+                val test = TestEntity(
+                    title = testDto.title.ifBlank { "Imported Test" },
+                    batchId = resolvedBatchId,
+                    subjectId = resolvedSubjectId,
+                    chapterId = resolvedChapterId,
+                    durationMinutes = testDto.durationMinutes,
+                    questionIdsJson = JSONArray(insertedIds).toString()
+                )
+                repository.insertTest(test)
+                showMessage("Imported ${insertedIds.size} questions as Test: ${test.title}")
+            } else {
+                showMessage("Imported ${insertedIds.size} questions into Question Bank!")
             }
         }
     }
@@ -848,8 +843,8 @@ class StudyViewModel(
     // -------------------------------------------------------------
     // Curriculum (Batch & Subjects) JSON Import
     // -------------------------------------------------------------
-    suspend fun validateCurriculumJson(jsonString: String): CurriculumValidationResult = withContext(Dispatchers.Default) {
-        CurriculumJsonParser.parseAndValidate(jsonString)
+    fun validateCurriculumJson(jsonString: String): CurriculumValidationResult {
+        return CurriculumJsonParser.parseAndValidate(jsonString)
     }
 
     fun importCurriculum(
@@ -874,8 +869,8 @@ class StudyViewModel(
                 }
                 showMessage(msg)
                 onCompleted(summary.batchId)
-            } catch (t: Throwable) {
-                showMessage("Failed to import curriculum: ${t.localizedMessage ?: "Unknown error"}")
+            } catch (e: Exception) {
+                showMessage("Failed to import curriculum: ${e.message}")
             }
         }
     }
@@ -883,8 +878,8 @@ class StudyViewModel(
     // -------------------------------------------------------------
     // Bulk Question Bank Import (All Chapters at Once)
     // -------------------------------------------------------------
-    suspend fun validateBulkQuestionBankJson(json: String, defaultSubjectName: String? = null): BulkQuestionBankValidationResult = withContext(Dispatchers.Default) {
-        BulkQuestionBankParser.parseAndValidate(json, defaultSubjectName)
+    fun validateBulkQuestionBankJson(json: String, defaultSubjectName: String? = null): BulkQuestionBankValidationResult {
+        return BulkQuestionBankParser.parseAndValidate(json, defaultSubjectName)
     }
 
     fun importBulkQuestionBank(
@@ -903,8 +898,8 @@ class StudyViewModel(
                 val msg = "Imported ${summary.totalQuestionsImported} questions across ${summary.chaptersAffected} chapters into '${summary.batchName}' (${summary.existingChaptersMatched} matched, ${summary.newChaptersCreated} created)!"
                 showMessage(msg)
                 onCompleted(summary)
-            } catch (t: Throwable) {
-                showMessage("Failed to import questions: ${t.localizedMessage ?: "Unknown error"}")
+            } catch (e: Exception) {
+                showMessage("Failed to import questions: ${e.message}")
             }
         }
     }

@@ -60,9 +60,11 @@ jobs:
             echo "Created empty .env file for build"
           fi
 
-          # Ensure google-services.json exists for com.studyforge.app
-          mkdir -p app
-          echo '{"project_info":{"project_number":"123456789","project_id":"studyforge-app","storage_bucket":"studyforge-app.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789:android:abcdef","android_client_info":{"package_name":"com.studyforge.app"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyFakeKeyForBuildOnly12345"}],"services":{"analytics_service":{"status":1}}}]}' > app/google-services.json
+          # Ensure fallback dummy google-services.json if any tool checks for it
+          if [ ! -f "app/google-services.json" ]; then
+            mkdir -p app
+            echo '{"project_info":{"project_number":"123456789","project_id":"studyforge-app","storage_bucket":"studyforge-app.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789:android:abcdef","android_client_info":{"package_name":"com.studyforge.app"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyFakeKeyForBuildOnly12345"}],"services":{"analytics_service":{"status":1}}}]}' > app/google-services.json
+          fi
 
       - name: Ensure Debug Keystore
         run: |
