@@ -28,6 +28,7 @@ import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.domain.model.RevisionItemType
 import com.studyforge.app.domain.model.SubjectMasteryInfo
 import com.studyforge.app.domain.model.TestScoringSummary
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -110,7 +111,12 @@ class StudyRepository(private val db: AppDatabase) {
 
     // Questions
     suspend fun insertQuestion(question: QuestionEntity): Long = db.questionDao().insertQuestion(question)
-    suspend fun insertQuestions(questions: List<QuestionEntity>): List<Long> = db.questionDao().insertQuestions(questions)
+    suspend fun insertQuestions(questions: List<QuestionEntity>): List<Long> {
+        if (questions.isEmpty()) return emptyList()
+        return questions.chunked(50).flatMap { chunk ->
+            db.questionDao().insertQuestions(chunk)
+        }
+    }
     suspend fun updateQuestion(question: QuestionEntity) = db.questionDao().updateQuestion(question)
     suspend fun deleteQuestion(question: QuestionEntity) = db.questionDao().deleteQuestion(question)
     suspend fun getQuestionsByIds(ids: List<Long>): List<QuestionEntity> = db.questionDao().getQuestionsByIds(ids)
@@ -457,120 +463,126 @@ class StudyRepository(private val db: AppDatabase) {
         curriculum: CurriculumValidationResult,
         targetBatchId: Long? = null
     ): CurriculumImportSummary = withContext(Dispatchers.IO) {
-        val resolvedBatchId: Long = when {
-            targetBatchId != null && targetBatchId > 0L -> targetBatchId
-            curriculum.batch != null -> {
-                val b = curriculum.batch
-                insertBatch(
-                    BatchEntity(
-                        name = b.name,
-                        courseOrClass = b.courseOrClass,
-                        session = b.session,
-                        goal = b.goal,
-                        description = b.description
+        db.withTransaction {
+            val allBatches = db.batchDao().getAllBatchesList()
+            val resolvedBatchId: Long = when {
+                targetBatchId != null && targetBatchId > 0L -> targetBatchId
+                curriculum.batch != null -> {
+                    val b = curriculum.batch
+                    insertBatch(
+                        BatchEntity(
+                            name = b.name.ifBlank { "Imported Batch" },
+                            courseOrClass = b.courseOrClass,
+                            session = b.session,
+                            goal = b.goal,
+                            description = b.description
+                        )
                     )
-                )
+                }
+                else -> {
+                    val existing = allBatches.firstOrNull()
+                    existing?.id ?: insertBatch(BatchEntity(name = "Imported Batch"))
+                }
             }
-            else -> {
-                val existing = db.batchDao().getAllBatches().first().firstOrNull()
-                existing?.id ?: insertBatch(BatchEntity(name = "Imported Batch"))
-            }
-        }
 
-        val targetBatch = db.batchDao().getAllBatches().first().find { it.id == resolvedBatchId }
-        val batchName = targetBatch?.name ?: curriculum.batch?.name ?: "Imported Batch"
+            val targetBatch = db.batchDao().getBatchById(resolvedBatchId)
+            val batchName = targetBatch?.name ?: curriculum.batch?.name ?: "Imported Batch"
 
-        var subjectsCount = 0
-        var chaptersCount = 0
-        var notesCount = 0
-        var formulasCount = 0
-        var questionsCount = 0
+            var subjectsCount = 0
+            var chaptersCount = 0
+            var notesCount = 0
+            var formulasCount = 0
+            var questionsCount = 0
 
-        for (subDto in curriculum.subjects) {
-            val subjectId = insertSubject(
-                SubjectEntity(
-                    batchId = resolvedBatchId,
-                    name = subDto.name,
-                    iconName = subDto.iconName,
-                    colorHex = subDto.colorHex
-                )
-            )
-            subjectsCount++
-
-            for (chapDto in subDto.chapters) {
-                val chapterId = insertChapter(
-                    ChapterEntity(
-                        subjectId = subjectId,
+            for (subDto in curriculum.subjects) {
+                val subjectId = insertSubject(
+                    SubjectEntity(
                         batchId = resolvedBatchId,
-                        name = chapDto.name,
-                        orderIndex = chapDto.orderIndex
+                        name = subDto.name.ifBlank { "Subject ${subjectsCount + 1}" },
+                        iconName = subDto.iconName,
+                        colorHex = subDto.colorHex
                     )
                 )
-                chaptersCount++
+                subjectsCount++
 
-                for (noteDto in chapDto.notes) {
-                    insertNote(
-                        NoteEntity(
-                            chapterId = chapterId,
+                for (chapDto in subDto.chapters) {
+                    val chapterId = insertChapter(
+                        ChapterEntity(
                             subjectId = subjectId,
                             batchId = resolvedBatchId,
-                            title = noteDto.title,
-                            contentMarkdown = noteDto.content,
-                            tagsJson = "[\"Imported\"]"
+                            name = chapDto.name.ifBlank { "Chapter ${chaptersCount + 1}" },
+                            orderIndex = chapDto.orderIndex
                         )
                     )
-                    notesCount++
-                }
+                    chaptersCount++
 
-                for (formulaDto in chapDto.formulas) {
-                    insertFormula(
-                        FormulaEntity(
-                            chapterId = chapterId,
-                            subjectId = subjectId,
-                            batchId = resolvedBatchId,
-                            title = formulaDto.title,
-                            formulaLatex = formulaDto.latex,
-                            explanation = formulaDto.explanation,
-                            tagsJson = "[\"Imported\"]"
+                    for (noteDto in chapDto.notes) {
+                        insertNote(
+                            NoteEntity(
+                                chapterId = chapterId,
+                                subjectId = subjectId,
+                                batchId = resolvedBatchId,
+                                title = noteDto.title.ifBlank { "Note" },
+                                contentMarkdown = noteDto.content,
+                                tagsJson = "[\"Imported\"]"
+                            )
                         )
-                    )
-                    formulasCount++
-                }
+                        notesCount++
+                    }
 
-                for (qDto in chapDto.questions) {
-                    insertQuestion(
-                        QuestionEntity(
-                            chapterId = chapterId,
-                            subjectId = subjectId,
-                            batchId = resolvedBatchId,
-                            type = qDto.type,
-                            questionText = qDto.question,
-                            optionsJson = JSONArray(qDto.options).toString(),
-                            correctAnswersJson = JSONArray(qDto.correctAnswers).toString(),
-                            marks = qDto.marks,
-                            negativeMarks = qDto.negativeMarks,
-                            difficulty = qDto.difficulty,
-                            topic = qDto.topic,
-                            hint = qDto.hint,
-                            explanation = qDto.explanation,
-                            detailedSolution = qDto.detailedSolution,
-                            tagsJson = "[\"Imported\"]"
+                    for (formulaDto in chapDto.formulas) {
+                        insertFormula(
+                            FormulaEntity(
+                                chapterId = chapterId,
+                                subjectId = subjectId,
+                                batchId = resolvedBatchId,
+                                title = formulaDto.title.ifBlank { "Formula" },
+                                formulaLatex = formulaDto.latex,
+                                explanation = formulaDto.explanation,
+                                tagsJson = "[\"Imported\"]"
+                            )
                         )
-                    )
-                    questionsCount++
+                        formulasCount++
+                    }
+
+                    if (chapDto.questions.isNotEmpty()) {
+                        val qEntities = chapDto.questions.map { qDto ->
+                            val safeMarks = if (qDto.marks.isNaN() || qDto.marks.isInfinite()) 4.0 else qDto.marks
+                            val safeNeg = if (qDto.negativeMarks.isNaN() || qDto.negativeMarks.isInfinite()) 0.0 else qDto.negativeMarks
+                            QuestionEntity(
+                                chapterId = chapterId,
+                                subjectId = subjectId,
+                                batchId = resolvedBatchId,
+                                type = qDto.type,
+                                questionText = qDto.question,
+                                optionsJson = JSONArray(qDto.options).toString(),
+                                correctAnswersJson = JSONArray(qDto.correctAnswers).toString(),
+                                marks = safeMarks,
+                                negativeMarks = safeNeg,
+                                difficulty = qDto.difficulty,
+                                topic = qDto.topic,
+                                hint = qDto.hint,
+                                explanation = qDto.explanation,
+                                detailedSolution = qDto.detailedSolution,
+                                tagsJson = "[\"Imported\"]"
+                            )
+                        }
+                        insertQuestions(qEntities)
+                        questionsCount += qEntities.size
+                    }
                 }
             }
-        }
 
-        CurriculumImportSummary(
-            batchId = resolvedBatchId,
-            batchName = batchName,
-            subjectsCount = subjectsCount,
-            chaptersCount = chaptersCount,
-            notesCount = notesCount,
-            formulasCount = formulasCount,
-            questionsCount = questionsCount
-        )
+            CurriculumImportSummary(
+                batchId = resolvedBatchId,
+                batchName = batchName,
+                subjectsCount = subjectsCount,
+                chaptersCount = chaptersCount,
+                notesCount = notesCount,
+                formulasCount = formulasCount,
+                questionsCount = questionsCount
+            )
+        }
     }
 
     suspend fun importBulkQuestionBank(
@@ -578,51 +590,69 @@ class StudyRepository(private val db: AppDatabase) {
         targetBatchId: Long,
         fallbackSubjectId: Long?
     ): BulkQuestionBankImportSummary = withContext(Dispatchers.IO) {
-        val allBatches = db.batchDao().getAllBatches().first()
-        val resolvedBatchId = if (targetBatchId > 0L && allBatches.any { it.id == targetBatchId }) {
-            targetBatchId
-        } else if (!result.batchName.isNullOrBlank()) {
-            val existing = allBatches.find { it.name.equals(result.batchName, ignoreCase = true) }
-            existing?.id ?: insertBatch(BatchEntity(name = result.batchName, description = "Imported Question Bank"))
-        } else {
-            allBatches.firstOrNull()?.id ?: insertBatch(BatchEntity(name = "General Batch"))
-        }
+        db.withTransaction {
+            val allBatches = db.batchDao().getAllBatchesList()
+            val resolvedBatchId = if (targetBatchId > 0L && allBatches.any { it.id == targetBatchId }) {
+                targetBatchId
+            } else if (!result.batchName.isNullOrBlank()) {
+                val existing = allBatches.find { it.name.equals(result.batchName, ignoreCase = true) }
+                existing?.id ?: insertBatch(BatchEntity(name = result.batchName, description = "Imported Question Bank"))
+            } else {
+                allBatches.firstOrNull()?.id ?: insertBatch(BatchEntity(name = "General Batch"))
+            }
 
-        val targetBatch = db.batchDao().getAllBatches().first().find { it.id == resolvedBatchId }
-        val batchName = targetBatch?.name ?: result.batchName ?: "Target Batch"
+            val targetBatch = db.batchDao().getBatchById(resolvedBatchId)
+            val batchName = targetBatch?.name ?: result.batchName ?: "Target Batch"
 
-        val existingSubjects = db.subjectDao().getSubjectsForBatch(resolvedBatchId).first().toMutableList()
-        val existingChapters: MutableList<ChapterEntity> = db.chapterDao().getAllChapters().first().filter { it.batchId == resolvedBatchId }.toMutableList()
+            val existingSubjects = db.subjectDao().getSubjectsForBatchList(resolvedBatchId).toMutableList()
+            val existingChapters: MutableList<ChapterEntity> = db.chapterDao().getChaptersForBatchList(resolvedBatchId).toMutableList()
 
-        // Ensure fallback subject strictly belongs to the resolved batch
-        val safeFallbackSubjectId: Long? = if (fallbackSubjectId != null && fallbackSubjectId > 0L) {
-            existingSubjects.find { it.id == fallbackSubjectId }?.id
-        } else null
+            // Ensure fallback subject strictly belongs to the resolved batch
+            val safeFallbackSubjectId: Long? = if (fallbackSubjectId != null && fallbackSubjectId > 0L) {
+                existingSubjects.find { it.id == fallbackSubjectId }?.id
+            } else null
 
-        val affectedSubjectIds = mutableSetOf<Long>()
-        val affectedChapterIds = mutableSetOf<Long>()
-        var newChaptersCount = 0
-        var matchedChaptersCount = 0
-        var totalQuestionsCount = 0
-        val chapterDetails = mutableListOf<Pair<String, Int>>()
+            val affectedSubjectIds = mutableSetOf<Long>()
+            val affectedChapterIds = mutableSetOf<Long>()
+            var newChaptersCount = 0
+            var matchedChaptersCount = 0
+            var totalQuestionsCount = 0
+            val chapterDetails = mutableListOf<Pair<String, Int>>()
 
-        val subjectCache = mutableMapOf<String, Long>()
+            val subjectCache = mutableMapOf<String, Long>()
 
-        for (group in result.chapterGroups) {
-            // 1. Resolve Subject strictly inside resolvedBatchId
-            val targetSubName = group.subjectName?.trim()?.ifBlank { null }
-            val subjectId: Long = when {
-                targetSubName != null -> {
-                    subjectCache.getOrPut(targetSubName.lowercase()) {
-                        val found = existingSubjects.find { it.name.equals(targetSubName, ignoreCase = true) }
-                        if (found != null) {
-                            found.id
-                        } else {
+            for (group in result.chapterGroups) {
+                // 1. Resolve Subject strictly inside resolvedBatchId
+                val targetSubName = group.subjectName?.trim()?.ifBlank { null }
+                val subjectId: Long = when {
+                    targetSubName != null -> {
+                        subjectCache.getOrPut(targetSubName.lowercase()) {
+                            val found = existingSubjects.find { it.name.equals(targetSubName, ignoreCase = true) }
+                            if (found != null) {
+                                found.id
+                            } else {
+                                val newSub = SubjectEntity(
+                                    batchId = resolvedBatchId,
+                                    name = targetSubName,
+                                    iconName = "quiz",
+                                    colorHex = "#3B82F6"
+                                )
+                                val newId = insertSubject(newSub)
+                                existingSubjects.add(newSub.copy(id = newId))
+                                newId
+                            }
+                        }
+                    }
+                    safeFallbackSubjectId != null -> safeFallbackSubjectId
+                    existingSubjects.isNotEmpty() -> existingSubjects.first().id
+                    else -> {
+                        val defaultName = result.defaultSubjectName?.ifBlank { "General Subject" } ?: "General Subject"
+                        subjectCache.getOrPut(defaultName.lowercase()) {
                             val newSub = SubjectEntity(
                                 batchId = resolvedBatchId,
-                                name = targetSubName,
-                                iconName = "quiz",
-                                colorHex = "#3B82F6"
+                                name = defaultName,
+                                iconName = "book",
+                                colorHex = "#4F46E5"
                             )
                             val newId = insertSubject(newSub)
                             existingSubjects.add(newSub.copy(id = newId))
@@ -630,87 +660,73 @@ class StudyRepository(private val db: AppDatabase) {
                         }
                     }
                 }
-                safeFallbackSubjectId != null -> safeFallbackSubjectId
-                existingSubjects.isNotEmpty() -> existingSubjects.first().id
-                else -> {
-                    val defaultName = result.defaultSubjectName?.ifBlank { "General Subject" } ?: "General Subject"
-                    subjectCache.getOrPut(defaultName.lowercase()) {
-                        val newSub = SubjectEntity(
-                            batchId = resolvedBatchId,
-                            name = defaultName,
-                            iconName = "book",
-                            colorHex = "#4F46E5"
-                        )
-                        val newId = insertSubject(newSub)
-                        existingSubjects.add(newSub.copy(id = newId))
-                        newId
-                    }
+                affectedSubjectIds.add(subjectId)
+
+                // 2. Resolve Chapter strictly inside subjectId and resolvedBatchId
+                val trimmedChapName = group.chapterName.trim().ifBlank { "Chapter ${newChaptersCount + 1}" }
+                val existingChapterInSubject = existingChapters.find { c ->
+                    c.subjectId == subjectId && c.batchId == resolvedBatchId && (
+                        c.name.equals(trimmedChapName, ignoreCase = true) ||
+                        c.name.trim().lowercase().removePrefix("chapter ").trimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ', '-')
+                            .equals(trimmedChapName.lowercase().removePrefix("chapter ").trimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ', '-'), ignoreCase = true)
+                    )
                 }
-            }
-            affectedSubjectIds.add(subjectId)
 
-            // 2. Resolve Chapter strictly inside subjectId and resolvedBatchId
-            val trimmedChapName = group.chapterName.trim()
-            val existingChapterInSubject = existingChapters.find { c ->
-                c.subjectId == subjectId && c.batchId == resolvedBatchId && (
-                    c.name.equals(trimmedChapName, ignoreCase = true) ||
-                    c.name.trim().lowercase().removePrefix("chapter ").trimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ', '-')
-                        .equals(trimmedChapName.lowercase().removePrefix("chapter ").trimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ', '-'), ignoreCase = true)
-                )
+                val chapterId: Long
+                if (existingChapterInSubject != null) {
+                    chapterId = existingChapterInSubject.id
+                    matchedChaptersCount++
+                } else {
+                    val newIndex = existingChapters.count { it.subjectId == subjectId }
+                    val newChap = ChapterEntity(
+                        subjectId = subjectId,
+                        batchId = resolvedBatchId,
+                        name = trimmedChapName,
+                        orderIndex = newIndex
+                    )
+                    chapterId = insertChapter(newChap)
+                    existingChapters.add(newChap.copy(id = chapterId))
+                    newChaptersCount++
+                }
+                affectedChapterIds.add(chapterId)
+
+                // 3. Insert Questions in batch
+                val questionEntities = group.questions.map { qDto ->
+                    val safeMarks = if (qDto.marks.isNaN() || qDto.marks.isInfinite()) 4.0 else qDto.marks
+                    val safeNeg = if (qDto.negativeMarks.isNaN() || qDto.negativeMarks.isInfinite()) 0.0 else qDto.negativeMarks
+                    QuestionEntity(
+                        chapterId = chapterId,
+                        subjectId = subjectId,
+                        batchId = resolvedBatchId,
+                        type = qDto.type,
+                        questionText = qDto.question,
+                        optionsJson = JSONArray(qDto.options).toString(),
+                        correctAnswersJson = JSONArray(qDto.correctAnswers).toString(),
+                        marks = safeMarks,
+                        negativeMarks = safeNeg,
+                        difficulty = qDto.difficulty,
+                        topic = qDto.topic,
+                        hint = qDto.hint,
+                        explanation = qDto.explanation,
+                        detailedSolution = qDto.detailedSolution,
+                        tagsJson = "[\"BulkImported\", \"QuestionBank\"]"
+                    )
+                }
+                insertQuestions(questionEntities)
+                totalQuestionsCount += questionEntities.size
+                chapterDetails.add(Pair(trimmedChapName, questionEntities.size))
             }
 
-            val chapterId: Long
-            if (existingChapterInSubject != null) {
-                chapterId = existingChapterInSubject.id
-                matchedChaptersCount++
-            } else {
-                val newIndex = existingChapters.count { it.subjectId == subjectId }
-                val newChap = ChapterEntity(
-                    subjectId = subjectId,
-                    batchId = resolvedBatchId,
-                    name = trimmedChapName,
-                    orderIndex = newIndex
-                )
-                chapterId = insertChapter(newChap)
-                existingChapters.add(newChap.copy(id = chapterId))
-                newChaptersCount++
-            }
-            affectedChapterIds.add(chapterId)
-
-            // 3. Insert Questions in batch
-            val questionEntities = group.questions.map { qDto ->
-                QuestionEntity(
-                    chapterId = chapterId,
-                    subjectId = subjectId,
-                    batchId = resolvedBatchId,
-                    type = qDto.type,
-                    questionText = qDto.question,
-                    optionsJson = JSONArray(qDto.options).toString(),
-                    correctAnswersJson = JSONArray(qDto.correctAnswers).toString(),
-                    marks = qDto.marks,
-                    negativeMarks = qDto.negativeMarks,
-                    difficulty = qDto.difficulty,
-                    topic = qDto.topic,
-                    hint = qDto.hint,
-                    explanation = qDto.explanation,
-                    detailedSolution = qDto.detailedSolution,
-                    tagsJson = "[\"BulkImported\", \"QuestionBank\"]"
-                )
-            }
-            insertQuestions(questionEntities)
-            totalQuestionsCount += questionEntities.size
-            chapterDetails.add(Pair(trimmedChapName, questionEntities.size))
+            BulkQuestionBankImportSummary(
+                batchName = batchName,
+                subjectsAffected = affectedSubjectIds.size,
+                chaptersAffected = affectedChapterIds.size,
+                totalQuestionsImported = totalQuestionsCount,
+                newChaptersCreated = newChaptersCount,
+                existingChaptersMatched = matchedChaptersCount,
+                chapterDetails = chapterDetails
+            )
         }
-
-        BulkQuestionBankImportSummary(
-            batchName = batchName,
-            subjectsAffected = affectedSubjectIds.size,
-            chaptersAffected = affectedChapterIds.size,
-            totalQuestionsImported = totalQuestionsCount,
-            newChaptersCreated = newChaptersCount,
-            existingChaptersMatched = matchedChaptersCount,
-            chapterDetails = chapterDetails
-        )
     }
 
     private data class AnalyticsQuad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

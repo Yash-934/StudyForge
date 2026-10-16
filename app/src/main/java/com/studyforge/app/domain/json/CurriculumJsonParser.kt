@@ -154,6 +154,13 @@ object CurriculumJsonParser {
             return CurriculumValidationResult(isValid = false, errorMessage = "JSON content is empty.")
         }
 
+        if (trimmed.length > 25 * 1024 * 1024) {
+            return CurriculumValidationResult(
+                isValid = false,
+                errorMessage = "File size exceeds 25MB limit. Please import in smaller batches."
+            )
+        }
+
         try {
             var parsedBatch: ParsedBatchDto? = null
             val parsedSubjects = mutableListOf<ParsedSubjectDto>()
@@ -239,10 +246,14 @@ object CurriculumJsonParser {
                 totalFormulasCount = totalFormulas,
                 totalQuestionsCount = totalQuestions
             )
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             return CurriculumValidationResult(
                 isValid = false,
-                errorMessage = "Invalid JSON syntax: ${e.message ?: "Could not parse JSON"}"
+                errorMessage = if (t is OutOfMemoryError) {
+                    "File is too large for device memory. Please reduce file size or split chapters into smaller files."
+                } else {
+                    "Invalid JSON syntax: ${t.localizedMessage ?: "Could not parse JSON"}"
+                }
             )
         }
     }
@@ -321,14 +332,19 @@ object CurriculumJsonParser {
                             correctAnswers.add(ansRaw.toString())
                         }
 
+                        val rawMarks = qObj.optDouble("marks", 1.0)
+                        val safeMarks = if (rawMarks.isNaN() || rawMarks.isInfinite()) 1.0 else rawMarks
+                        val rawNeg = qObj.optDouble("negativeMarks", 0.0)
+                        val safeNeg = if (rawNeg.isNaN() || rawNeg.isInfinite()) 0.0 else rawNeg
+
                         questions.add(
                             QuestionDto(
                                 type = qType,
                                 question = qText,
                                 options = options,
                                 correctAnswers = correctAnswers,
-                                marks = qObj.optDouble("marks", 1.0),
-                                negativeMarks = qObj.optDouble("negativeMarks", 0.0),
+                                marks = safeMarks,
+                                negativeMarks = safeNeg,
                                 explanation = qObj.optString("explanation", ""),
                                 detailedSolution = qObj.optString("detailedSolution", ""),
                                 difficulty = when (qObj.optString("difficulty", "medium").lowercase()) {

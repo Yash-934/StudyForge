@@ -246,4 +246,53 @@ class StudyForgeBusinessLogicTest {
         assertNotNull(waveOptics)
         assertEquals(2, waveOptics?.questions?.size)
     }
+
+    @Test
+    fun testBulkQuestionBankParser_largeData_handlesSafelyWithoutCrashing() {
+        val sb = StringBuilder()
+        sb.append("{\n  \"batch\": \"Mega Batch\",\n  \"chapters\": [\n")
+        for (c in 1..20) {
+            sb.append("    {\n      \"name\": \"Chapter $c\",\n      \"questions\": [\n")
+            for (q in 1..15) {
+                sb.append("        {\n")
+                sb.append("          \"question\": \"Question $q in Chapter $c with \\\\frac{a}{b} = c?\",\n")
+                sb.append("          \"options\": [\"Opt A\", \"Opt B\", \"Opt C\", \"Opt D\"],\n")
+                sb.append("          \"correctAnswer\": \"Opt A\",\n")
+                sb.append("          \"topic\": \"Topic $c.$q\",\n")
+                sb.append("          \"marks\": 4\n")
+                sb.append("        }${if (q < 15) "," else ""}\n")
+            }
+            sb.append("      ]\n    }${if (c < 20) "," else ""}\n")
+        }
+        sb.append("  ]\n}")
+
+        val result = BulkQuestionBankParser.parseAndValidate(sb.toString())
+        assertTrue(result.isValid)
+        assertEquals(20, result.totalChaptersCount)
+        assertEquals(300, result.totalQuestionsCount)
+        assertEquals("Topic 1.1", result.chapterGroups.first().questions.first().topic)
+    }
+
+    @Test
+    fun testCurriculumJsonParser_largeCurriculum_parsesCorrectly() {
+        val sb = StringBuilder()
+        sb.append("{\n  \"batch\": { \"name\": \"Large Curriculum Batch\" },\n  \"subjects\": [\n")
+        for (s in 1..5) {
+            sb.append("    {\n      \"name\": \"Subject $s\",\n      \"chapters\": [\n")
+            for (c in 1..10) {
+                sb.append("        {\n          \"name\": \"Subject $s Chapter $c\",\n")
+                sb.append("          \"notes\": [ { \"title\": \"N1\", \"content\": \"Content 1\" } ],\n")
+                sb.append("          \"formulas\": [ { \"title\": \"F1\", \"latex\": \"E=mc^2\" } ]\n")
+                sb.append("        }${if (c < 10) "," else ""}\n")
+            }
+            sb.append("      ]\n    }${if (s < 5) "," else ""}\n")
+        }
+        sb.append("  ]\n}")
+
+        val result = com.studyforge.app.domain.json.CurriculumJsonParser.parseAndValidate(sb.toString())
+        assertTrue(result.isValid)
+        assertEquals(50, result.totalChaptersCount)
+        assertEquals(50, result.totalNotesCount)
+        assertEquals(50, result.totalFormulasCount)
+    }
 }

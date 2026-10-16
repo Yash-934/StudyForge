@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 
 class StudyViewModel(
@@ -761,6 +762,12 @@ class StudyViewModel(
         return result
     }
 
+    suspend fun validateJsonAsync(jsonString: String): TestValidationResult = withContext(Dispatchers.Default) {
+        val result = TestJsonParser.parseAndValidate(jsonString)
+        _importValidationResult.value = result
+        result
+    }
+
     fun importValidatedTest(
         testDto: TestImportDto,
         importMode: Int,
@@ -794,40 +801,46 @@ class StudyViewModel(
                 repository.insertChapter(ChapterEntity(subjectId = resolvedSubjectId, batchId = resolvedBatchId, name = testDto.title.ifBlank { "General Chapter" }, orderIndex = 0))
             }
 
-            val entities = testDto.questions.map { q ->
-                QuestionEntity(
-                    chapterId = resolvedChapterId,
-                    subjectId = resolvedSubjectId,
-                    batchId = resolvedBatchId,
-                    type = q.type,
-                    questionText = q.question,
-                    optionsJson = JSONArray(q.options).toString(),
-                    correctAnswersJson = JSONArray(q.correctAnswers).toString(),
-                    explanation = q.explanation,
-                    detailedSolution = q.detailedSolution,
-                    marks = q.marks,
-                    negativeMarks = q.negativeMarks,
-                    difficulty = q.difficulty,
-                    topic = q.topic,
-                    hint = q.hint,
-                    imageUrl = q.imageUrl,
-                    timeLimitSeconds = q.timeLimitSeconds
-                )
-            }
-            val insertedIds = repository.insertQuestions(entities)
-            if (importMode == 1) { // As Test
-                val test = TestEntity(
-                    title = testDto.title.ifBlank { "Imported Test" },
-                    batchId = resolvedBatchId,
-                    subjectId = resolvedSubjectId,
-                    chapterId = resolvedChapterId,
-                    durationMinutes = testDto.durationMinutes,
-                    questionIdsJson = JSONArray(insertedIds).toString()
-                )
-                repository.insertTest(test)
-                showMessage("Imported ${insertedIds.size} questions as Test: ${test.title}")
-            } else {
-                showMessage("Imported ${insertedIds.size} questions into Question Bank!")
+            try {
+                val entities = testDto.questions.map { q ->
+                    val safeMarks = if (q.marks.isNaN() || q.marks.isInfinite()) 4.0 else q.marks
+                    val safeNeg = if (q.negativeMarks.isNaN() || q.negativeMarks.isInfinite()) 0.0 else q.negativeMarks
+                    QuestionEntity(
+                        chapterId = resolvedChapterId,
+                        subjectId = resolvedSubjectId,
+                        batchId = resolvedBatchId,
+                        type = q.type,
+                        questionText = q.question,
+                        optionsJson = JSONArray(q.options).toString(),
+                        correctAnswersJson = JSONArray(q.correctAnswers).toString(),
+                        explanation = q.explanation,
+                        detailedSolution = q.detailedSolution,
+                        marks = safeMarks,
+                        negativeMarks = safeNeg,
+                        difficulty = q.difficulty,
+                        topic = q.topic,
+                        hint = q.hint,
+                        imageUrl = q.imageUrl,
+                        timeLimitSeconds = q.timeLimitSeconds
+                    )
+                }
+                val insertedIds = repository.insertQuestions(entities)
+                if (importMode == 1) { // As Test
+                    val test = TestEntity(
+                        title = testDto.title.ifBlank { "Imported Test" },
+                        batchId = resolvedBatchId,
+                        subjectId = resolvedSubjectId,
+                        chapterId = resolvedChapterId,
+                        durationMinutes = testDto.durationMinutes,
+                        questionIdsJson = JSONArray(insertedIds).toString()
+                    )
+                    repository.insertTest(test)
+                    showMessage("Imported ${insertedIds.size} questions as Test: ${test.title}")
+                } else {
+                    showMessage("Imported ${insertedIds.size} questions into Question Bank!")
+                }
+            } catch (e: Exception) {
+                showMessage("Failed to import test questions: ${e.message}")
             }
         }
     }
@@ -843,6 +856,10 @@ class StudyViewModel(
     // -------------------------------------------------------------
     // Curriculum (Batch & Subjects) JSON Import
     // -------------------------------------------------------------
+    suspend fun validateCurriculumJsonAsync(jsonString: String): CurriculumValidationResult = withContext(Dispatchers.Default) {
+        CurriculumJsonParser.parseAndValidate(jsonString)
+    }
+
     fun validateCurriculumJson(jsonString: String): CurriculumValidationResult {
         return CurriculumJsonParser.parseAndValidate(jsonString)
     }
@@ -878,6 +895,10 @@ class StudyViewModel(
     // -------------------------------------------------------------
     // Bulk Question Bank Import (All Chapters at Once)
     // -------------------------------------------------------------
+    suspend fun validateBulkQuestionBankJsonAsync(json: String, defaultSubjectName: String? = null): BulkQuestionBankValidationResult = withContext(Dispatchers.Default) {
+        BulkQuestionBankParser.parseAndValidate(json, defaultSubjectName)
+    }
+
     fun validateBulkQuestionBankJson(json: String, defaultSubjectName: String? = null): BulkQuestionBankValidationResult {
         return BulkQuestionBankParser.parseAndValidate(json, defaultSubjectName)
     }

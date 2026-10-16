@@ -28,6 +28,9 @@ interface BatchDao {
     @Query("SELECT * FROM batches ORDER BY isPinned DESC, createdAt ASC, id ASC")
     fun getAllBatches(): Flow<List<BatchEntity>>
 
+    @Query("SELECT * FROM batches ORDER BY isPinned DESC, createdAt ASC, id ASC")
+    suspend fun getAllBatchesList(): List<BatchEntity>
+
     @Query("SELECT * FROM batches WHERE id = :id LIMIT 1")
     suspend fun getBatchById(id: Long): BatchEntity?
 
@@ -49,8 +52,14 @@ interface SubjectDao {
     @Query("SELECT * FROM subjects WHERE batchId = :batchId ORDER BY isPinned DESC, createdAt ASC, id ASC")
     fun getSubjectsForBatch(batchId: Long): Flow<List<SubjectEntity>>
 
+    @Query("SELECT * FROM subjects WHERE batchId = :batchId ORDER BY isPinned DESC, createdAt ASC, id ASC")
+    suspend fun getSubjectsForBatchList(batchId: Long): List<SubjectEntity>
+
     @Query("SELECT * FROM subjects ORDER BY isPinned DESC, createdAt ASC, id ASC")
     fun getAllSubjects(): Flow<List<SubjectEntity>>
+
+    @Query("SELECT * FROM subjects ORDER BY isPinned DESC, createdAt ASC, id ASC")
+    suspend fun getAllSubjectsList(): List<SubjectEntity>
 
     @Query("SELECT * FROM subjects WHERE id = :id LIMIT 1")
     suspend fun getSubjectById(id: Long): SubjectEntity?
@@ -73,8 +82,17 @@ interface ChapterDao {
     @Query("SELECT * FROM chapters WHERE subjectId = :subjectId ORDER BY orderIndex ASC, id ASC")
     fun getChaptersForSubject(subjectId: Long): Flow<List<ChapterEntity>>
 
+    @Query("SELECT * FROM chapters WHERE subjectId = :subjectId ORDER BY orderIndex ASC, id ASC")
+    suspend fun getChaptersForSubjectList(subjectId: Long): List<ChapterEntity>
+
+    @Query("SELECT * FROM chapters WHERE batchId = :batchId ORDER BY orderIndex ASC, id ASC")
+    suspend fun getChaptersForBatchList(batchId: Long): List<ChapterEntity>
+
     @Query("SELECT * FROM chapters ORDER BY orderIndex ASC, id ASC")
     fun getAllChapters(): Flow<List<ChapterEntity>>
+
+    @Query("SELECT * FROM chapters ORDER BY orderIndex ASC, id ASC")
+    suspend fun getAllChaptersList(): List<ChapterEntity>
 
     @Query("SELECT * FROM chapters WHERE id = :id LIMIT 1")
     suspend fun getChapterById(id: Long): ChapterEntity?

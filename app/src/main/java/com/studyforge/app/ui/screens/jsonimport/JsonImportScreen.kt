@@ -24,16 +24,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.UploadFile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -95,12 +102,24 @@ fun JsonImportScreen(
     val subjects by viewModel.subjects.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
 
+    val coroutineScope = rememberCoroutineScope()
     var jsonInput by remember { mutableStateOf(TestJsonParser.EXAMPLE_TEST_JSON) }
+    var loadedFileName by remember { mutableStateOf<String?>(null) }
+    var isReadingFile by remember { mutableStateOf(false) }
+    var isValidating by remember { mutableStateOf(false) }
     var selectedInputTab by remember { mutableIntStateOf(0) } // 0 = Paste, 1 = File
     var validationResult by remember { mutableStateOf<TestValidationResult?>(null) }
     var importMode by remember { mutableIntStateOf(1) } // 1 = As Test, 2 = Question Bank, 3 = Assign Chapter
     var showCurriculumDialog by remember { mutableStateOf(false) }
     var showBulkQuestionBankDialog by remember { mutableStateOf(false) }
+
+    val isLargeInput = jsonInput.length > 4000 || loadedFileName != null
+    val estimatedLineCount = remember(jsonInput) {
+        if (jsonInput.isEmpty()) 0 else jsonInput.count { it == '\n' } + 1
+    }
+    val safePreviewSnippet = remember(jsonInput) {
+        if (jsonInput.isEmpty()) "" else jsonInput.take(400).lines().take(4).joinToString("\n")
+    }
 
     var selectedBatchId by remember { mutableStateOf(batches.firstOrNull()?.id ?: 1L) }
     var selectedSubjectId by remember { mutableStateOf(subjects.firstOrNull()?.id ?: 1L) }
@@ -130,19 +149,32 @@ fun JsonImportScreen(
         }
     }
 
-    // File picker launcher
+    // File picker launcher - Background Dispatchers.IO reading
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val content = stream.bufferedReader().use { it.readText() }
-                    jsonInput = content
-                    validationResult = viewModel.validateJson(content)
+            coroutineScope.launch {
+                isReadingFile = true
+                try {
+                    val content = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            stream.bufferedReader().use { it.readText() }
+                        }
+                    }
+                    if (!content.isNullOrBlank()) {
+                        jsonInput = content
+                        loadedFileName = "Uploaded File (${content.length / 1024} KB)"
+                        validationResult = viewModel.validateJsonAsync(content)
+                        viewModel.showMessage("File loaded (${content.length / 1024} KB) and validated.")
+                    } else {
+                        viewModel.showMessage("Selected file is empty.")
+                    }
+                } catch (e: Exception) {
+                    viewModel.showMessage("Failed to read file: ${e.message}")
+                } finally {
+                    isReadingFile = false
                 }
-            } catch (e: Exception) {
-                viewModel.showMessage("Failed to read file: ${e.message}")
             }
         }
     }
@@ -307,20 +339,68 @@ fun JsonImportScreen(
             }
 
             if (selectedInputTab == 0) {
-                item {
-                    OutlinedTextField(
-                        value = jsonInput,
-                        onValueChange = {
-                            jsonInput = it
-                            validationResult = null // Reset on edit
-                        },
-                        placeholder = { Text("Paste JSON here...") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                if (isLargeInput) {
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = loadedFileName ?: "Large JSON Document Loaded",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "${jsonInput.length / 1024} KB • $estimatedLineCount lines",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            jsonInput = ""
+                                            loadedFileName = null
+                                            validationResult = null
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear", modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = safePreviewSnippet + if (estimatedLineCount > 4) "\n..." else "",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 10.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        OutlinedTextField(
+                            value = jsonInput,
+                            onValueChange = {
+                                if (it.length > 4000) {
+                                    loadedFileName = "Pasted JSON Content (${it.length / 1024} KB)"
+                                }
+                                jsonInput = it
+                                validationResult = null // Reset on edit
+                            },
+                            placeholder = { Text("Paste JSON here...") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
                 }
             } else {
                 item {
@@ -358,12 +438,28 @@ fun JsonImportScreen(
                 ) {
                     Button(
                         onClick = {
-                            validationResult = viewModel.validateJson(jsonInput)
+                            coroutineScope.launch {
+                                isValidating = true
+                                try {
+                                    validationResult = viewModel.validateJsonAsync(jsonInput)
+                                } catch (t: Throwable) {
+                                    viewModel.showMessage("Failed to validate JSON: ${t.localizedMessage}")
+                                } finally {
+                                    isValidating = false
+                                }
+                            }
                         },
+                        enabled = !isValidating && jsonInput.isNotBlank(),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Validate JSON")
+                        if (isValidating) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Validating...")
+                        } else {
+                            Text("Validate JSON")
+                        }
                     }
 
                     OutlinedButton(
@@ -626,15 +722,30 @@ fun JsonImportScreen(
                         }
                     }
 
-                    // Preview of Questions
+                    // Preview of Questions (Capped to first 10 to avoid WebView memory exhaustion)
+                    val previewQuestions = res.testDto.questions.take(10)
+
                     item {
-                        Text(
-                            text = "Question Preview (${res.testDto.questions.size})",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Question Preview (${previewQuestions.size}/${res.testDto.questions.size})",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            if (res.testDto.questions.size > 10) {
+                                Text(
+                                    text = "Showing first 10",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
 
-                    itemsIndexed(res.testDto.questions) { idx, q ->
+                    itemsIndexed(previewQuestions) { idx, q ->
                         StudyCard(
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -649,6 +760,23 @@ fun JsonImportScreen(
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 MarkdownMathView(markdownText = q.question)
+                            }
+                        }
+                    }
+
+                    if (res.testDto.questions.size > 10) {
+                        item {
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "✨ + ${res.testDto.questions.size - 10} more questions ready to import.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(12.dp)
+                                )
                             }
                         }
                     }

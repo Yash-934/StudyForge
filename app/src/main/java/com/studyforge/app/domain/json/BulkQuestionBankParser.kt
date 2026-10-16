@@ -289,6 +289,13 @@ object BulkQuestionBankParser {
             )
         }
 
+        if (trimmed.length > 25 * 1024 * 1024) {
+            return BulkQuestionBankValidationResult(
+                isValid = false,
+                errorMessage = "File size exceeds 25MB limit. Please import in smaller batches."
+            )
+        }
+
         try {
             var batchName: String? = null
             var defaultSub: String? = defaultSubjectName
@@ -454,10 +461,14 @@ object BulkQuestionBankParser {
                 totalQuestionsCount = totalQ,
                 totalChaptersCount = chapterGroups.size
             )
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             return BulkQuestionBankValidationResult(
                 isValid = false,
-                errorMessage = "Invalid JSON syntax: ${e.message ?: "Failed to parse JSON"}"
+                errorMessage = if (t is OutOfMemoryError) {
+                    "File is too large for device memory. Please reduce file size or split questions by subject/chapter."
+                } else {
+                    "Invalid JSON syntax: ${t.localizedMessage ?: "Failed to parse JSON"}"
+                }
             )
         }
     }
@@ -547,10 +558,12 @@ object BulkQuestionBankParser {
         }
 
         val expl = obj.optString("explanation", obj.optString("solution", obj.optString("detailedSolution", ""))).trim()
-        val topic = obj.optString("topic", obj.optString("subtopic", "")).trim()
-        val marks = obj.optDouble("marks", obj.optDouble("score", if (qType == QuestionType.TRUE_FALSE) 2.0 else 4.0))
-        val negMarks = obj.optDouble("negativeMarks", obj.optDouble("penalty", 0.0))
+        val rawMarks = obj.optDouble("marks", obj.optDouble("score", if (qType == QuestionType.TRUE_FALSE) 2.0 else 4.0))
+        val marks = if (rawMarks.isNaN() || rawMarks.isInfinite()) (if (qType == QuestionType.TRUE_FALSE) 2.0 else 4.0) else rawMarks
+        val rawNeg = obj.optDouble("negativeMarks", obj.optDouble("penalty", 0.0))
+        val negMarks = if (rawNeg.isNaN() || rawNeg.isInfinite()) 0.0 else rawNeg
         val hint = obj.optString("hint", "").trim()
+        val topic = obj.optString("topic", "").trim()
 
         return QuestionDto(
             type = qType,
