@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -524,10 +525,9 @@ fun SectionHeader(
 }
 
 /**
- * Clean, flat, modern Explanation Box matching the user's reference design:
- * - Simple rounded box with zero 3D shadow or elevation bevels.
- * - Soothing light cyan/mint background with a matching crisp border.
- * - Bold "Explanation" heading in rich teal/cyan.
+ * Clean, flat, modern Explanation Box matching Material 3 theme design:
+ * - Soothing, Material 3 theme-compliant background and crisp border.
+ * - Bold "Explanation" heading with Lightbulb icon badge.
  * - Full support for LaTeX math formulas, KaTeX, Markdown, tables, bold/italic syntax.
  */
 @Composable
@@ -539,15 +539,28 @@ fun ExplanationBox(
     if (explanation.isBlank()) return
 
     val isDark = isSystemInDarkTheme()
-    val bgColor = if (isDark) Color(0xFF0D2527) else Color(0xFFE6F8F9)
-    val borderColor = if (isDark) Color(0xFF1B5559) else Color(0xFF8CE3E5)
-    val titleColor = if (isDark) Color(0xFF2DD4BF) else Color(0xFF0F766E)
-    val shape = RoundedCornerShape(22.dp)
+    val bgColor = if (isDark) {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+    }
+    val borderColor = if (isDark) {
+        MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)
+    } else {
+        MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
+    }
+    val titleColor = if (isDark) {
+        MaterialTheme.colorScheme.secondary
+    } else {
+        MaterialTheme.colorScheme.secondary
+    }
+    val shape = RoundedCornerShape(20.dp)
 
     Surface(
         shape = shape,
         color = bgColor,
-        border = BorderStroke(1.5.dp, borderColor),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, borderColor),
         shadowElevation = 0.dp,
         tonalElevation = 0.dp,
         modifier = modifier.fillMaxWidth()
@@ -555,24 +568,34 @@ fun ExplanationBox(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp)
         ) {
-            Text(
-                text = "Explanation",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
-                    letterSpacing = (-0.2).sp
-                ),
-                color = titleColor
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SquircleIconBadge(
+                    icon = Icons.Default.Lightbulb,
+                    accentColor = titleColor,
+                    size = 32.dp,
+                    iconSize = 18.dp
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Explanation",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp
+                    ),
+                    color = titleColor
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             MarkdownMathView(markdownText = explanation)
 
             if (!topic.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "Topic: $topic",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
