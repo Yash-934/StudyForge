@@ -7,14 +7,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -67,6 +65,7 @@ import com.studyforge.app.data.local.entities.QuestionEntity
 import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.ui.components.DifficultyBadge
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.ExplanationBox
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.OptionMathText
 import com.studyforge.app.ui.components.StudyCard
@@ -227,23 +226,6 @@ fun ChapterRevisionScreen(
                     (0 until arr.length()).map { arr.optString(it) }
                 } catch (e: Exception) {
                     emptyList()
-                }
-            }
-
-            val formattedCorrectAnswer = remember(correctList, optionsList, currentQ) {
-                if (correctList.isEmpty()) ""
-                else {
-                    correctList.joinToString(", ") { ans ->
-                        val idx = ans.toIntOrNull()
-                        if (idx != null && idx in optionsList.indices) {
-                            val letter = ('A' + idx).toChar()
-                            "Option $letter"
-                        } else if (ans.length == 1 && ans[0].uppercaseChar() in 'A'..'Z') {
-                            "Option ${ans.uppercase()}"
-                        } else {
-                            ans
-                        }
-                    }
                 }
             }
 
@@ -618,104 +600,19 @@ fun ChapterRevisionScreen(
                         }
                     }
 
-                    // Open, non-boxed Explanation Layout (Automatically shown when user answers)
+                    // Explanation Box: Automatically shown when user answers!
                     if (isAnswered) {
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Clean Horizontal Divider
-                        HorizontalDivider(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Correct Option Indicator
-                            if (formattedCorrectAnswer.isNotBlank()) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            color = SuccessGreen.copy(alpha = 0.12f),
-                                            shape = RoundedCornerShape(10.dp)
-                                        )
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = SuccessGreen,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Correct Answer: $formattedCorrectAnswer",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = SuccessGreen
-                                    )
-                                }
-                            }
-
-                            // Header Label
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(top = 2.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Lightbulb,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Explanation & Solution",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            // Unboxed Body Content with left accent border line
-                            Row(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(3.5.dp)
-                                        .height(IntrinsicSize.Min)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    val explanationContent = when {
-                                        currentQ.explanation.isNotBlank() -> currentQ.explanation
-                                        currentQ.detailedSolution.isNotBlank() -> currentQ.detailedSolution
-                                        else -> "Refer to the correct answer indicated above."
-                                    }
-
-                                    MarkdownMathView(markdownText = explanationContent)
-
-                                    if (currentQ.topic.isNotBlank()) {
-                                        Text(
-                                            text = "Topic: ${currentQ.topic}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        val explanationContent = when {
+                            currentQ.explanation.isNotBlank() -> currentQ.explanation
+                            currentQ.detailedSolution.isNotBlank() -> currentQ.detailedSolution
+                            else -> "Correct Answer: ${correctList.joinToString(", ")}"
                         }
+
+                        ExplanationBox(
+                            explanation = explanationContent,
+                            topic = currentQ.topic.ifBlank { null }
+                        )
 
                         // Try again option
                         Row(

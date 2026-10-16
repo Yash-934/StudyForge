@@ -61,6 +61,7 @@ import com.studyforge.app.domain.model.Difficulty
 import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.ui.components.DifficultyBadge
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.ExplanationBox
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.OptionMathText
 import com.studyforge.app.ui.components.StudyCard
@@ -493,16 +494,13 @@ fun QuestionBankCard(
                 }
 
                 if (showExplanation) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            val explanationText = question.explanation.ifBlank { question.detailedSolution }
-                            MarkdownMathView(markdownText = explanationText)
-                        }
+                    val explanationText = question.explanation.ifBlank { question.detailedSolution }
+                    if (explanationText.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ExplanationBox(
+                            explanation = explanationText,
+                            topic = question.topic.ifBlank { null }
+                        )
                     }
                 }
             }

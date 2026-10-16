@@ -50,6 +50,7 @@ import com.studyforge.app.data.local.entities.QuestionEntity
 import com.studyforge.app.data.local.entities.TestAnswerEntity
 import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.ui.components.DifficultyBadge
+import com.studyforge.app.ui.components.ExplanationBox
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
@@ -248,19 +249,13 @@ fun QuestionReviewCard(
             }
 
             // Explanation & Detailed Solution
-            if (question.explanation.isNotBlank() || question.detailedSolution.isNotBlank()) {
+            val explanationText = question.explanation.ifBlank { question.detailedSolution }
+            if (explanationText.isNotBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "EXPLANATION & DETAILED SOLUTION",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary
+                ExplanationBox(
+                    explanation = explanationText,
+                    topic = question.topic.ifBlank { null }
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                val explanationText = question.explanation.ifBlank { question.detailedSolution }
-                MarkdownMathView(markdownText = explanationText)
             }
         }
     }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -521,3 +522,64 @@ fun SectionHeader(
         }
     }
 }
+
+/**
+ * Clean, flat, modern Explanation Box matching the user's reference design:
+ * - Simple rounded box with zero 3D shadow or elevation bevels.
+ * - Soothing light cyan/mint background with a matching crisp border.
+ * - Bold "Explanation" heading in rich teal/cyan.
+ * - Full support for LaTeX math formulas, KaTeX, Markdown, tables, bold/italic syntax.
+ */
+@Composable
+fun ExplanationBox(
+    explanation: String,
+    modifier: Modifier = Modifier,
+    topic: String? = null
+) {
+    if (explanation.isBlank()) return
+
+    val isDark = isSystemInDarkTheme()
+    val bgColor = if (isDark) Color(0xFF0D2527) else Color(0xFFE6F8F9)
+    val borderColor = if (isDark) Color(0xFF1B5559) else Color(0xFF8CE3E5)
+    val titleColor = if (isDark) Color(0xFF2DD4BF) else Color(0xFF0F766E)
+    val shape = RoundedCornerShape(22.dp)
+
+    Surface(
+        shape = shape,
+        color = bgColor,
+        border = BorderStroke(1.5.dp, borderColor),
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp)
+        ) {
+            Text(
+                text = "Explanation",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    letterSpacing = (-0.2).sp
+                ),
+                color = titleColor
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            MarkdownMathView(markdownText = explanation)
+
+            if (!topic.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = "Topic: $topic",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = titleColor.copy(alpha = 0.85f)
+                )
+            }
+        }
+    }
+}
+

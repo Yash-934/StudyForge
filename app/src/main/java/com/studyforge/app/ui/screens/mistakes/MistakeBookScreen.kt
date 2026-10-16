@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import com.studyforge.app.data.local.entities.MistakeEntity
 import com.studyforge.app.data.local.entities.QuestionEntity
 import com.studyforge.app.ui.components.EmptyState
+import com.studyforge.app.ui.components.ExplanationBox
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
@@ -270,9 +271,11 @@ fun MistakeCard(
             }
 
             if (question.explanation.isNotBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Solution & Logic:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                MarkdownMathView(markdownText = question.explanation)
+                Spacer(modifier = Modifier.height(12.dp))
+                ExplanationBox(
+                    explanation = question.explanation,
+                    topic = question.topic.ifBlank { null }
+                )
             }
 
             if (!mistake.isResolved) {
