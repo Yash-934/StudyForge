@@ -189,18 +189,30 @@ EOF
 
       - name: Determine Release Tag & Title
         id: release_info
+        env:
+          INPUT_TAG: ${{ inputs.tag_name }}
+          INPUT_TITLE: ${{ inputs.release_title }}
+          INPUT_NOTES: ${{ inputs.release_notes }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref }}
+          SHA_VAL: ${{ github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
-            echo "title=${{ github.event.inputs.release_title || github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
-            echo "notes=${{ github.event.inputs.release_notes }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
+            TITLE="$INPUT_TITLE"
+            NOTES="$INPUT_NOTES"
+            if [ -z "$TAG" ]; then TAG="v1.0.0"; fi
+            if [ -z "$TITLE" ]; then TITLE="$TAG"; fi
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "title=$TITLE" >> $GITHUB_OUTPUT
+            echo "notes=$NOTES" >> $GITHUB_OUTPUT
+          elif [[ "$REF_NAME" == refs/tags/* ]]; then
+            TAG="${REF_NAME#refs/tags/}"
             echo "tag=$TAG" >> $GITHUB_OUTPUT
             echo "title=StudyForge $TAG" >> $GITHUB_OUTPUT
             echo "notes=Automated release for tag $TAG" >> $GITHUB_OUTPUT
           else
-            SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+            SHORT_SHA=$(echo "$SHA_VAL" | cut -c1-7)
             echo "tag=v1.0-$SHORT_SHA" >> $GITHUB_OUTPUT
             echo "title=StudyForge Build $SHORT_SHA" >> $GITHUB_OUTPUT
             echo "notes=Continuous automated build for commit $SHORT_SHA" >> $GITHUB_OUTPUT
