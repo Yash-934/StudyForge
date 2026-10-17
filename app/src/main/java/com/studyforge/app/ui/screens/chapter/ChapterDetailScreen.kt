@@ -482,6 +482,7 @@ fun ChapterDetailScreen(
                                         text = note.title.ifBlank { "Untitled Note" },
                                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                         maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
                                     if (note.isPinned) {
@@ -508,7 +509,8 @@ fun ChapterDetailScreen(
                                     text = note.contentMarkdown.take(90).ifBlank { "Tap to view/edit note" },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -589,7 +591,10 @@ fun ChapterDetailScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = note.title.ifBlank { "Untitled Note" },
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
                                         )
                                         if (note.isPinned) {
                                             Spacer(modifier = Modifier.width(6.dp))
@@ -615,7 +620,8 @@ fun ChapterDetailScreen(
                                         text = note.contentMarkdown.take(100).ifBlank { "No content" },
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 2
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                                 Icon(

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AlertDialog
@@ -67,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.MathEditorToolbar
 import com.studyforge.app.ui.components.RenderMarkdownNode
@@ -109,6 +111,7 @@ fun NoteEditorScreen(
     var isPinned by remember(activeNoteId) { mutableStateOf(activeNote?.isPinned ?: false) }
     var showAiDialog by remember { mutableStateOf(false) }
     var showNoteListMenu by remember { mutableStateOf(false) }
+    var showMoreActionsMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Zero-permission Photo Picker for importing images from device gallery
@@ -179,11 +182,15 @@ fun NoteEditorScreen(
                         text = if (isEditing) {
                             if (activeNote != null) "Edit Note" else "New Note"
                         } else {
-                            title.ifBlank { "Note" }
+                            title.ifBlank { "Study Note" }
                         },
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 22.sp
+                        ),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 },
                 navigationIcon = {
@@ -297,21 +304,6 @@ fun NoteEditorScreen(
                             )
                         }
                     } else {
-                        // Full-screen Preview mode actions
-                        IconButton(onClick = { isPinned = !isPinned }) {
-                            Icon(
-                                imageVector = Icons.Default.PushPin,
-                                contentDescription = "Pin",
-                                tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                            )
-                        }
-                        IconButton(onClick = { isFavorite = !isFavorite }) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
-                            )
-                        }
                         IconButton(onClick = { showAiDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
@@ -319,21 +311,70 @@ fun NoteEditorScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        if (activeNoteId > 0L) {
-                            IconButton(onClick = { showDeleteDialog = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete Note",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
                         IconButton(onClick = { isEditing = true }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Edit Note",
                                 tint = MaterialTheme.colorScheme.primary
                             )
+                        }
+                        Box {
+                            IconButton(onClick = { showMoreActionsMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "More Options"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMoreActionsMenu,
+                                onDismissRequest = { showMoreActionsMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(if (isPinned) "Unpin Note" else "Pin Note") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.PushPin,
+                                            contentDescription = null,
+                                            tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
+                                    onClick = {
+                                        isPinned = !isPinned
+                                        showMoreActionsMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (isFavorite) "Remove Favorite" else "Mark Favorite") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = null,
+                                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
+                                    onClick = {
+                                        isFavorite = !isFavorite
+                                        showMoreActionsMenu = false
+                                    }
+                                )
+                                if (activeNoteId > 0L) {
+                                    HorizontalDivider()
+                                    DropdownMenuItem(
+                                        text = { Text("Delete Note", color = MaterialTheme.colorScheme.error) },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        },
+                                        onClick = {
+                                            showMoreActionsMenu = false
+                                            showDeleteDialog = true
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 },
@@ -430,28 +471,48 @@ fun NoteEditorScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 item(key = "note_title_header") {
-                    Text(
-                        text = title.ifBlank { "Untitled Note" },
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, bottom = 10.dp)
+                    ) {
+                        Text(
+                            text = title.ifBlank { "Untitled Note" },
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 21.sp,
+                                lineHeight = 29.sp
+                            ),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                    if (chapter != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                        ) {
-                            Text(
-                                text = chapter.name,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                        if (chapter != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+                            ) {
+                                Text(
+                                    text = chapter.name,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        lineHeight = 18.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HorizontalDivider(
+                            thickness = 0.75.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                    }
                 }
 
                 items(
