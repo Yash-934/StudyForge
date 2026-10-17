@@ -113,16 +113,16 @@ fun ChapterDetailScreen(
     val mistakes by viewModel.allMistakes.collectAsState()
     val flashcards by viewModel.flashcards.collectAsState()
 
-    val chapter = chapters.find { it.id == chapterId }
-    val subject = subjects.find { it.id == chapter?.subjectId }
-    val batch = batches.find { it.id == chapter?.batchId }
+    val chapter = remember(chapters, chapterId) { chapters.find { it.id == chapterId } }
+    val subject = remember(subjects, chapter?.subjectId) { subjects.find { it.id == chapter?.subjectId } }
+    val batch = remember(batches, chapter?.batchId) { batches.find { it.id == chapter?.batchId } }
 
-    val chapterNotes = notes.filter { it.chapterId == chapterId }
-    val chapterFormulas = formulas.filter { it.chapterId == chapterId }
-    val chapterQuestions = questions.filter { it.chapterId == chapterId }
-    val chapterTests = tests.filter { it.chapterId == chapterId }
-    val chapterMistakes = mistakes.filter { it.chapterId == chapterId && !it.isResolved }
-    val chapterFlashcards = flashcards.filter { it.chapterId == chapterId }
+    val chapterNotes = remember(notes, chapterId) { notes.filter { it.chapterId == chapterId } }
+    val chapterFormulas = remember(formulas, chapterId) { formulas.filter { it.chapterId == chapterId } }
+    val chapterQuestions = remember(questions, chapterId) { questions.filter { it.chapterId == chapterId } }
+    val chapterTests = remember(tests, chapterId) { tests.filter { it.chapterId == chapterId } }
+    val chapterMistakes = remember(mistakes, chapterId) { mistakes.filter { it.chapterId == chapterId && !it.isResolved } }
+    val chapterFlashcards = remember(flashcards, chapterId) { flashcards.filter { it.chapterId == chapterId } }
 
     var showAiDialog by remember { mutableStateOf(false) }
     var showNotesSheet by remember { mutableStateOf(false) }

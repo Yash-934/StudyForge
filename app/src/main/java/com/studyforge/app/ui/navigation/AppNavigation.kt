@@ -110,26 +110,35 @@ fun AppNavigation(
         bottomBar = {
             if (shouldShowBottomBar) {
                 Surface(
-                    tonalElevation = 3.dp,
-                    shadowElevation = 6.dp,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.navigationBarsPadding()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
+                        )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp),
+                                .height(60.dp)
+                                .padding(horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val items = listOf(
-                                Triple(Screen.Home.route, Icons.Default.Home, "Home"),
-                                Triple(Screen.Practice.route, Icons.Default.PlayCircle, "Practice"),
-                                Triple(Screen.Library.route, Icons.Default.Folder, "Library"),
-                                Triple(Screen.Analytics.route, Icons.Default.QueryStats, "Stats"),
-                                Triple(Screen.Planner.route, Icons.Default.CalendarMonth, "Planner"),
-                                Triple(Screen.Settings.route, Icons.Default.Settings, "Settings")
-                            )
+                            val items = remember {
+                                listOf(
+                                    Triple(Screen.Home.route, Icons.Default.Home, "Home"),
+                                    Triple(Screen.Practice.route, Icons.Default.PlayCircle, "Practice"),
+                                    Triple(Screen.Library.route, Icons.Default.Folder, "Library"),
+                                    Triple(Screen.Analytics.route, Icons.Default.QueryStats, "Stats"),
+                                    Triple(Screen.Planner.route, Icons.Default.CalendarMonth, "Planner"),
+                                    Triple(Screen.Settings.route, Icons.Default.Settings, "Settings")
+                                )
+                            }
 
                             items.forEach { (route, icon, label) ->
                                 val selected = currentRoute == route
@@ -137,12 +146,14 @@ fun AppNavigation(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight()
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .clip(RoundedCornerShape(12.dp))
                                         .clickable {
-                                            navController.navigate(route) {
-                                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                                launchSingleTop = true
-                                                restoreState = true
+                                            if (currentRoute != route) {
+                                                navController.navigate(route) {
+                                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
                                             }
                                         },
                                     contentAlignment = Alignment.Center
@@ -153,9 +164,9 @@ fun AppNavigation(
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .width(42.dp)
-                                                .height(26.dp)
-                                                .clip(RoundedCornerShape(13.dp))
+                                                .width(46.dp)
+                                                .height(28.dp)
+                                                .clip(RoundedCornerShape(14.dp))
                                                 .background(
                                                     if (selected) MaterialTheme.colorScheme.primaryContainer
                                                     else Color.Transparent
@@ -165,17 +176,17 @@ fun AppNavigation(
                                             Icon(
                                                 imageVector = icon,
                                                 contentDescription = label,
-                                                modifier = Modifier.size(19.dp),
+                                                modifier = Modifier.size(20.dp),
                                                 tint = if (selected) MaterialTheme.colorScheme.primary
                                                 else MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
-                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Spacer(modifier = Modifier.height(3.dp))
                                         Text(
                                             text = label,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontSize = 10.sp,
-                                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium
                                             ),
                                             color = if (selected) MaterialTheme.colorScheme.primary
                                             else MaterialTheme.colorScheme.onSurfaceVariant,

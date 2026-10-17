@@ -1,5 +1,6 @@
 package com.studyforge.app.ui.screens.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,16 +18,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -39,9 +36,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -56,13 +50,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.studyforge.app.data.local.entities.ChapterEntity
-import com.studyforge.app.ui.components.EmptyState
 import com.studyforge.app.ui.components.HeroLearningCard
 import com.studyforge.app.ui.components.MasteryProgressBar
 import com.studyforge.app.ui.components.SectionHeader
@@ -96,12 +88,14 @@ fun HomeScreen(
     val analytics by viewModel.analytics.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val subjects by viewModel.subjects.collectAsState()
-    val tests by viewModel.tests.collectAsState()
     val revisionDue by viewModel.revisionDueItems.collectAsState()
     val unresolvedMistakes by viewModel.unresolvedMistakes.collectAsState()
     val sessions by viewModel.sessions.collectAsState()
 
-    val topChapter = chapters.firstOrNull()
+    val topChapter = remember(chapters) { chapters.firstOrNull() }
+    val topSubjectName = remember(topChapter, subjects) {
+        if (topChapter == null) null else subjects.find { it.id == topChapter.subjectId }?.name ?: "General"
+    }
     var showBulkQBankDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -109,68 +103,63 @@ fun HomeScreen(
             .fillMaxSize()
             .statusBarsPadding()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            // Top Bar Greeting & Search
+        item(key = "home_header") {
+            Spacer(modifier = Modifier.height(6.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f, fill = false).padding(end = 6.dp)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(end = 8.dp)
+                ) {
                     Text(
                         text = "StudyForge",
-                        style = MaterialTheme.typography.headlineSmall.copy(
+                        style = MaterialTheme.typography.headlineMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.5).sp
+                            letterSpacing = (-0.6).sp
                         ),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "Personal Learning Operating System",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Study Streak Badge
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = WarningYellow.copy(alpha = 0.15f),
+                        color = WarningYellow.copy(alpha = 0.14f),
+                        border = BorderStroke(0.5.dp, WarningYellow.copy(alpha = 0.35f)),
                         modifier = Modifier.padding(end = 6.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.LocalFireDepartment,
                                 contentDescription = "Streak",
                                 tint = WarningYellow,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "${analytics.currentStreakDays}d streak",
+                                text = "${analytics.currentStreakDays}d",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 color = WarningYellow
                             )
                         }
-                    }
-
-                    IconButton(onClick = onNavigateToSearch) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
                     }
 
                     IconButton(onClick = onNavigateToSettings) {
@@ -184,46 +173,79 @@ fun HomeScreen(
             }
         }
 
+        // Fast Search Bar Trigger
+        item(key = "home_search_bar") {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onNavigateToSearch() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Global Search",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Search chapters, notes, formulas, MCQs...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
         // Quick Action Chips Row
-        item {
+        item(key = "home_quick_actions") {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                item {
-                    ActionChip(label = "New Note", icon = Icons.Default.Add) {
-                        val chapId = topChapter?.id ?: 1L
-                        onNavigateToNoteEditor(chapId)
+                item(key = "act_qbank") {
+                    ActionChip(label = "Import All Q-Bank", icon = Icons.Default.Quiz) {
+                        showBulkQBankDialog = true
                     }
                 }
-                item {
-                    ActionChip(label = "New Question", icon = Icons.Default.Quiz) {
-                        val chapId = topChapter?.id ?: 1L
-                        onNavigateToQuestionEditor(chapId)
-                    }
-                }
-                item {
+                item(key = "act_smart") {
                     ActionChip(label = "Smart Test", icon = Icons.Default.AutoAwesome) {
                         val chapId = topChapter?.id ?: 1L
                         onNavigateToSmartTest(chapId)
                     }
                 }
-                item {
+                item(key = "act_note") {
+                    ActionChip(label = "New Note", icon = Icons.Default.Add) {
+                        val chapId = topChapter?.id ?: 1L
+                        onNavigateToNoteEditor(chapId)
+                    }
+                }
+                item(key = "act_question") {
+                    ActionChip(label = "New Question", icon = Icons.Default.Quiz) {
+                        val chapId = topChapter?.id ?: 1L
+                        onNavigateToQuestionEditor(chapId)
+                    }
+                }
+                item(key = "act_json") {
                     ActionChip(label = "Import JSON", icon = Icons.Default.FileUpload) {
                         onNavigateToJsonImport()
                     }
                 }
-                item {
-                    ActionChip(label = "Import All Q-Bank", icon = Icons.Default.Quiz) {
-                        showBulkQBankDialog = true
-                    }
-                }
-                item {
+                item(key = "act_rev") {
                     ActionChip(label = "Revision", icon = Icons.Default.NotificationsActive) {
                         onNavigateToRevision()
                     }
                 }
-                item {
+                item(key = "act_mistakes") {
                     ActionChip(label = "Mistake Book", icon = Icons.Default.ErrorOutline) {
                         onNavigateToMistakes(-1L)
                     }
@@ -232,7 +254,7 @@ fun HomeScreen(
         }
 
         // Stats Overview Row
-        item {
+        item(key = "home_stats_row") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -254,24 +276,23 @@ fun HomeScreen(
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    title = "Tests Taken",
+                    title = "Tests",
                     value = "${analytics.totalTestsCompleted}",
                     icon = Icons.Default.FitnessCenter,
                     accentColor = PurpleAccent,
-                    subtext = "${analytics.overallAverageScore.toInt()}% avg score",
+                    subtext = "${analytics.overallAverageScore.toInt()}% avg",
                     modifier = Modifier.weight(1f)
                 )
             }
         }
 
         // Continue Learning Banner or Welcome Card
-        item {
+        item(key = "home_hero_card") {
             if (topChapter != null) {
-                val subject = subjects.find { it.id == topChapter.subjectId }
                 HeroLearningCard(
                     category = "CONTINUE LEARNING",
                     title = topChapter.name,
-                    subtitle = subject?.name ?: "Mathematics",
+                    subtitle = topSubjectName,
                     masteryScore = topChapter.masteryScore,
                     watermarkSymbol = "∫dx",
                     onClick = { onNavigateToChapter(topChapter.id) }
@@ -280,7 +301,7 @@ fun HomeScreen(
                 HeroLearningCard(
                     category = "GET STARTED WITH STUDYFORGE",
                     title = "Build Your Knowledge Base",
-                    subtitle = "Create batches in Library, write distraction-free notes with LaTeX math, organize formulas, practice questions with smart tests, and import JSON question banks.",
+                    subtitle = "Create batches in Library, write distraction-free notes with LaTeX math, organize formulas, and bulk import JSON question banks.",
                     watermarkIcon = Icons.Default.AutoAwesome,
                     actionIcon = Icons.Default.PlayArrow,
                     onClick = onNavigateToPractice
@@ -290,10 +311,10 @@ fun HomeScreen(
 
         // Revision Due Alert
         if (revisionDue.isNotEmpty()) {
-            item {
+            item(key = "home_revision_due") {
                 StudyCard(
                     shape = RoundedCornerShape(20.dp),
-                    borderColor = WarningYellow.copy(alpha = 0.35f),
+                    borderColor = WarningYellow.copy(alpha = 0.4f),
                     onClick = { onNavigateToRevision() }
                 ) {
                     Row(
@@ -341,10 +362,10 @@ fun HomeScreen(
 
         // Unresolved Mistakes Alert
         if (unresolvedMistakes.isNotEmpty()) {
-            item {
+            item(key = "home_mistakes_alert") {
                 StudyCard(
                     shape = RoundedCornerShape(20.dp),
-                    borderColor = ErrorRed.copy(alpha = 0.35f),
+                    borderColor = ErrorRed.copy(alpha = 0.4f),
                     onClick = { onNavigateToMistakes(-1L) }
                 ) {
                     Row(
@@ -392,10 +413,13 @@ fun HomeScreen(
 
         // Weak Areas Section
         if (analytics.weakChapters.isNotEmpty()) {
-            item {
+            item(key = "home_weak_header") {
                 SectionHeader(title = "Needs Attention")
             }
-            items(analytics.weakChapters.take(2)) { weakChap ->
+            items(
+                items = analytics.weakChapters.take(2),
+                key = { "weak_${it.chapterId}" }
+            ) { weakChap ->
                 StudyCard(
                     shape = RoundedCornerShape(18.dp),
                     onClick = { onNavigateToChapter(weakChap.chapterId) }
@@ -436,14 +460,16 @@ fun HomeScreen(
         }
 
         // Study Heatmap Section
-        item {
+        item(key = "home_heatmap") {
             SectionHeader(title = "Study Consistency")
+            Spacer(modifier = Modifier.height(4.dp))
             StudyHeatmap(sessions = sessions)
         }
 
         // Quick Navigation to Study Pillars
-        item {
+        item(key = "home_pillars") {
             SectionHeader(title = "Learning Modules & Tools")
+            Spacer(modifier = Modifier.height(4.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 StudyCard(
                     shape = RoundedCornerShape(20.dp),
@@ -466,8 +492,16 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
-                                Text("Practice & Mastery Hub", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Text("Smart tests, spaced revision queue, mistake notebook & flashcards", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "Practice & Mastery Hub",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    "Smart tests, spaced revision queue, mistake notebook & flashcards",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.width(10.dp))
@@ -509,8 +543,16 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
-                                Text("JSON Test & Question Importer", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Text("Bulk import MCQs, True/False, and Fill in the Blanks", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "JSON Test & Question Importer",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    "Bulk import MCQs, True/False, and Fill in the Blanks",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.width(10.dp))
@@ -534,7 +576,7 @@ fun HomeScreen(
         }
 
         // Daily Study Strategy Tip
-        item {
+        item(key = "home_strategy_tip") {
             StudyCard(
                 shape = RoundedCornerShape(20.dp),
                 borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
@@ -548,7 +590,11 @@ fun HomeScreen(
                             iconSize = 18.dp
                         )
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text("Active Recall & Spaced Repetition", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "Active Recall & Spaced Repetition",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -560,7 +606,7 @@ fun HomeScreen(
             }
         }
 
-        item {
+        item(key = "home_bottom_spacer") {
             Spacer(modifier = Modifier.height(72.dp))
         }
     }
@@ -584,7 +630,13 @@ private fun ActionChip(
 ) {
     AssistChip(
         onClick = onClick,
-        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+        shape = RoundedCornerShape(12.dp),
+        label = {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+        },
         leadingIcon = {
             Icon(
                 imageVector = icon,
@@ -592,6 +644,7 @@ private fun ActionChip(
                 modifier = Modifier.size(16.dp)
             )
         },
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
         colors = AssistChipDefaults.assistChipColors(
             containerColor = MaterialTheme.colorScheme.surface,
             labelColor = MaterialTheme.colorScheme.onSurface,

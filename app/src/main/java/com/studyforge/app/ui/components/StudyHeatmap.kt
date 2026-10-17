@@ -1,8 +1,9 @@
 package com.studyforge.app.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,10 +30,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.studyforge.app.data.local.entities.StudySessionEntity
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -47,6 +52,10 @@ data class DayActivity(
     val testsCount: Int
 )
 
+/**
+ * Ultra-fast 120 FPS Canvas-based Study Activity Heatmap.
+ * Replaces 84 nested Box/Border/Clip composables with a single hardware-accelerated Canvas draw pass.
+ */
 @Composable
 fun StudyHeatmap(
     sessions: List<StudySessionEntity>,
@@ -97,11 +106,26 @@ fun StudyHeatmap(
 
     val weeks = remember(daysList) { daysList.chunked(7) }
     var selectedDay by remember { mutableStateOf<DayActivity?>(null) }
-    val scrollState = rememberScrollState(Int.MAX_VALUE) // Scroll to most recent
+    val scrollState = rememberScrollState(Int.MAX_VALUE)
+
+    val emptyCellColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+    val level1Color = Color(0xFF86EFAC)
+    val level2Color = Color(0xFF22C55E)
+    val level3Color = Color(0xFF15803D)
+
+    val density = LocalDensity.current
+    val cellSizeDp = 16.dp
+    val spacingDp = 4.dp
+    val cornerRadiusDp = 4.dp
+
+    val numWeeks = weeks.size
+    val canvasWidthDp = (cellSizeDp * numWeeks) + (spacingDp * (numWeeks - 1).coerceAtLeast(0))
+    val canvasHeightDp = (cellSizeDp * 7) + (spacingDp * 6)
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -112,54 +136,104 @@ fun StudyHeatmap(
             ) {
                 Text(
                     text = "Study Activity Heatmap",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(
-                    text = "Past 12 Weeks",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = "Past 12 Weeks",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // 7 rows (Mon-Sun) across 12 columns
-            Row(
-                modifier = Modifier.horizontalScroll(scrollState),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState)
             ) {
-                for (week in weeks) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        for (day in week) {
-                            HeatmapCell(day = day) {
-                                selectedDay = day
+                Canvas(
+                    modifier = Modifier
+                        .width(canvasWidthDp)
+                        .height(canvasHeightDp)
+                        .pointerInput(weeks) {
+                            detectTapGestures { offset ->
+                                val cellPx = with(density) { cellSizeDp.toPx() }
+                                val spacePx = with(density) { spacingDp.toPx() }
+                                val stepPx = cellPx + spacePx
+                                val col = (offset.x / stepPx).toInt()
+                                val row = (offset.y / stepPx).toInt()
+                                if (col in weeks.indices) {
+                                    val week = weeks[col]
+                                    if (row in week.indices) {
+                                        selectedDay = week[row]
+                                    }
+                                }
                             }
+                        }
+                ) {
+                    val cellPx = cellSizeDp.toPx()
+                    val spacePx = spacingDp.toPx()
+                    val stepPx = cellPx + spacePx
+                    val radiusPx = cornerRadiusDp.toPx()
+
+                    for (wIdx in weeks.indices) {
+                        val week = weeks[wIdx]
+                        val x = wIdx * stepPx
+                        for (dIdx in week.indices) {
+                            val day = week[dIdx]
+                            val y = dIdx * stepPx
+                            val cellColor = when {
+                                day.minutesStudied == 0 -> emptyCellColor
+                                day.minutesStudied < 25 -> level1Color
+                                day.minutesStudied < 60 -> level2Color
+                                else -> level3Color
+                            }
+                            drawRoundRect(
+                                color = cellColor,
+                                topLeft = Offset(x, y),
+                                size = Size(cellPx, cellPx),
+                                cornerRadius = CornerRadius(radiusPx, radiusPx)
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Legend
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Less", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.width(4.dp))
-                listOf(0, 15, 45, 90).forEach { mins ->
+                Text(
+                    "Less",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                listOf(emptyCellColor, level1Color, level2Color, level3Color).forEach { c ->
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(getHeatmapColor(mins))
+                            .size(11.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(c)
                     )
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                 }
-                Text("More", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "More",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -169,11 +243,9 @@ fun StudyHeatmap(
             onDismissRequest = { selectedDay = null },
             title = { Text(day.dayLabel, fontWeight = FontWeight.Bold) },
             text = {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("⏱ Study Time: ${day.minutesStudied} minutes", style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.height(6.dp))
                     Text("🎯 Questions Solved: ${day.questionsSolved}", style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.height(6.dp))
                     Text("📝 Tests Completed: ${day.testsCount}", style = MaterialTheme.typography.bodyLarge)
                 }
             },
@@ -183,31 +255,5 @@ fun StudyHeatmap(
                 }
             }
         )
-    }
-}
-
-@Composable
-private fun HeatmapCell(
-    day: DayActivity,
-    onClick: () -> Unit
-) {
-    val color = getHeatmapColor(day.minutesStudied)
-    Box(
-        modifier = Modifier
-            .size(15.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .background(color)
-            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
-            .clickable { onClick() }
-    )
-}
-
-@Composable
-private fun getHeatmapColor(minutes: Int): Color {
-    return when {
-        minutes == 0 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        minutes < 25 -> Color(0xFF86EFAC) // Light Emerald Green
-        minutes < 60 -> Color(0xFF22C55E) // Vibrant Green
-        else -> Color(0xFF15803D)         // Deep Forest Green
     }
 }

@@ -109,6 +109,10 @@ fun LibraryScreen(
         }
     }
 
+    val subjectsByBatchId = remember(subjects) { subjects.groupBy { it.batchId } }
+    val chaptersByBatchId = remember(chapters) { chapters.groupBy { it.batchId } }
+    val chaptersBySubjectId = remember(chapters) { chapters.groupBy { it.subjectId } }
+
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         floatingActionButton = {
@@ -231,9 +235,12 @@ fun LibraryScreen(
                     }
                 }
             } else {
-                items(filteredBatches) { batch ->
-                    val batchSubjects = subjects.filter { it.batchId == batch.id }
-                    val batchChapters = chapters.filter { it.batchId == batch.id }
+                items(
+                    items = filteredBatches,
+                    key = { it.id }
+                ) { batch ->
+                    val batchSubjects = subjectsByBatchId[batch.id].orEmpty()
+                    val batchChapters = chaptersByBatchId[batch.id].orEmpty()
                     val avgMastery = if (batchChapters.isNotEmpty()) {
                         batchChapters.sumOf { it.masteryScore } / batchChapters.size
                     } else 0
@@ -271,11 +278,11 @@ fun LibraryScreen(
                                 )
                             } else {
                                 batchSubjects.forEach { sub ->
-                                    val subChapters = chapters.filter { it.subjectId == sub.id }
+                                    val subChaptersCount = chaptersBySubjectId[sub.id]?.size ?: 0
                                     SubjectRowItem(
                                         subjectName = sub.name,
                                         colorHex = sub.colorHex,
-                                        chapterCount = subChapters.size,
+                                        chapterCount = subChaptersCount,
                                         onClick = { onNavigateToSubject(sub.id) },
                                         onLongClick = { subjectActionTarget = sub },
                                         onMoreOptionsClick = { subjectActionTarget = sub }

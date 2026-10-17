@@ -3,6 +3,7 @@ package com.studyforge.app.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -52,21 +53,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.studyforge.app.domain.model.Difficulty
 import com.studyforge.app.ui.theme.ErrorRed
+import com.studyforge.app.ui.theme.JetBrainsMono
 import com.studyforge.app.ui.theme.SuccessGreen
 import com.studyforge.app.ui.theme.WarningYellow
 
 /**
- * Modern elevated card with subtle border and smooth rounded corners,
- * matching the uploaded style.
+ * High-performance Neo-Academic card with zero-overhead border and crisp surface hierarchy.
+ * Uses flat/tonal rendering by default to avoid expensive GPU shadow rasterization during scrolling.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun StudyCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(22.dp),
+    shape: Shape = RoundedCornerShape(20.dp),
     containerColor: Color = MaterialTheme.colorScheme.surface,
-    borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-    elevation: Dp = 2.dp,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+    elevation: Dp = 0.dp,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
@@ -75,10 +77,11 @@ fun StudyCard(
         Card(
             shape = shape,
             colors = CardDefaults.cardColors(containerColor = containerColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = elevation, pressedElevation = elevation + 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = elevation, pressedElevation = elevation),
             border = BorderStroke(1.dp, borderColor),
             modifier = modifier
                 .fillMaxWidth()
+                .clip(shape)
                 .combinedClickable(
                     onClick = { onClick?.invoke() },
                     onLongClick = onLongClick
@@ -100,7 +103,7 @@ fun StudyCard(
 }
 
 /**
- * Squircle badge for icons and actions, matching the uploaded design.
+ * Squircle badge for icons and actions with crisp contrast.
  */
 @Composable
 fun SquircleIconBadge(
@@ -133,13 +136,8 @@ fun SquircleIconBadge(
 }
 
 /**
- * Hero Card matching the uploaded screenshot style exactly:
- * - Crisp white card with rounded 22.dp corners and subtle 1dp border
- * - Tag/category in bold uppercase with letter-spacing
- * - Soft squircle light-blue action button with arrow
- * - Large bold topic title & subtitle
- * - Subtle watermark topic/math symbol in background
- * - Mastery percentage and smooth pill progress bar
+ * Redesigned Hero Learning Card with subtle atmospheric gradient, pill category badge,
+ * mathematical watermark, and smooth mastery bar.
  */
 @Composable
 fun HeroLearningCard(
@@ -153,39 +151,53 @@ fun HeroLearningCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val isDark = isSystemInDarkTheme()
+    val primary = MaterialTheme.colorScheme.primary
+    val gradientColors = if (isDark) {
+        listOf(
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f)
+        )
+    } else {
+        listOf(
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)
+        )
+    }
+
+    Surface(
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 4.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, primary.copy(alpha = 0.25f)),
         modifier = modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(Brush.linearGradient(gradientColors))
             .clickable { onClick() }
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
-            // Subtle math / topic watermark in background (visible like in Screenshot 2)
             if (watermarkSymbol != null) {
                 Text(
                     text = watermarkSymbol,
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         fontStyle = FontStyle.Italic
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.16f),
+                    color = primary.copy(alpha = 0.10f),
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .padding(end = 48.dp, bottom = 12.dp)
+                        .padding(end = 52.dp, bottom = 12.dp)
                 )
             } else if (watermarkIcon != null) {
                 Icon(
                     imageVector = watermarkIcon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.14f),
+                    tint = primary.copy(alpha = 0.10f),
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(56.dp)
                         .align(Alignment.CenterEnd)
-                        .padding(end = 48.dp)
+                        .padding(end = 52.dp)
                 )
             }
 
@@ -194,47 +206,50 @@ fun HeroLearningCard(
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
-                // Header row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = category.uppercase(),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.2.sp,
-                            fontSize = 12.sp
-                        ),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = primary.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = category.uppercase(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.1.sp,
+                                fontSize = 11.sp
+                            ),
+                            color = primary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
 
-                    // Rounded squircle action badge with soft light blue container
                     Box(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)),
+                            .background(primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = actionIcon,
                             contentDescription = "Open",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(
+                    style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-0.3).sp,
-                        fontSize = 24.sp
+                        letterSpacing = (-0.4).sp
                     ),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
@@ -242,15 +257,12 @@ fun HeroLearningCard(
                 )
 
                 if (subtitle != null) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Normal
-                        ),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -276,25 +288,25 @@ fun EmptyState(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                .size(68.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(32.dp)
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -331,7 +343,7 @@ fun StatCard(
 ) {
     StudyCard(
         shape = RoundedCornerShape(18.dp),
-        elevation = 2.dp,
+        borderColor = accentColor.copy(alpha = 0.22f),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -346,30 +358,38 @@ fun StatCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false).padding(end = 4.dp)
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(end = 4.dp)
                 )
                 SquircleIconBadge(
                     icon = icon,
                     accentColor = accentColor,
-                    size = 32.dp,
-                    iconSize = 18.dp
+                    size = 30.dp,
+                    iconSize = 16.dp,
+                    shape = RoundedCornerShape(10.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 22.sp
+                    fontFamily = JetBrainsMono,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             if (subtext != null) {
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtext,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -386,7 +406,7 @@ fun MasteryProgressBar(
     val progress = (score / 100f).coerceIn(0f, 1f)
     val (startColor, endColor) = when {
         score >= 75 -> SuccessGreen to Color(0xFF34D399)
-        score >= 40 -> WarningYellow to Color(0xFFFBBF24) // warm amber as in screenshot
+        score >= 40 -> WarningYellow to Color(0xFFFBBF24)
         else -> MaterialTheme.colorScheme.primary to Color(0xFF818CF8)
     }
 
@@ -398,31 +418,29 @@ fun MasteryProgressBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Mastery",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
+                    text = "Mastery Progress",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "$score%",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = JetBrainsMono,
+                        fontWeight = FontWeight.Bold
                     ),
                     color = startColor
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
         }
-        // Smooth pill progress bar with rounded ends on both track and progress
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(height)
                 .clip(RoundedCornerShape(100))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
         ) {
             if (progress > 0.01f) {
                 Box(
@@ -449,14 +467,15 @@ fun DifficultyBadge(difficulty: Difficulty) {
 
     Surface(
         shape = RoundedCornerShape(6.dp),
-        color = color.copy(alpha = 0.15f),
+        color = color.copy(alpha = 0.14f),
+        border = BorderStroke(0.5.dp, color.copy(alpha = 0.35f)),
         modifier = Modifier.padding(horizontal = 2.dp)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
             color = color,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
         )
     }
 }
@@ -501,18 +520,32 @@ fun SectionHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .padding(end = 8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
         if (actionText != null && onActionClick != null) {
             TextButton(onClick = onActionClick) {
                 Text(
@@ -549,11 +582,7 @@ fun ExplanationBox(
     } else {
         MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
     }
-    val titleColor = if (isDark) {
-        MaterialTheme.colorScheme.secondary
-    } else {
-        MaterialTheme.colorScheme.secondary
-    }
+    val titleColor = MaterialTheme.colorScheme.secondary
     val shape = RoundedCornerShape(20.dp)
 
     Surface(
@@ -605,4 +634,3 @@ fun ExplanationBox(
         }
     }
 }
-

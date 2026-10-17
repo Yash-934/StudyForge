@@ -18,10 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -285,15 +289,25 @@ fun ChapterRevisionScreen(
                     )
                 }
 
-                // Sequence Navigation Jump Bar
-                Row(
+                // Virtualized Sequence Navigation Jump Bar (120 FPS even with 500+ questions)
+                val jumpListState = rememberLazyListState()
+                LaunchedEffect(currentIndex) {
+                    if (currentIndex in chapterQuestions.indices) {
+                        jumpListState.animateScrollToItem((currentIndex - 2).coerceAtLeast(0))
+                    }
+                }
+                LazyRow(
+                    state = jumpListState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(vertical = 6.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    chapterQuestions.forEachIndexed { idx, q ->
+                    itemsIndexed(
+                        items = chapterQuestions,
+                        key = { _, q -> q.id }
+                    ) { idx, q ->
                         val ansState = userCorrectMap[q.id]
                         val isCurr = idx == currentIndex
 
