@@ -61,6 +61,7 @@ import com.studyforge.app.ui.components.SectionHeader
 import com.studyforge.app.ui.components.SquircleIconBadge
 import com.studyforge.app.ui.components.StatCard
 import com.studyforge.app.ui.components.StudyCard
+import com.studyforge.app.ui.components.StudyForgeBrandLogo
 import com.studyforge.app.ui.components.StudyHeatmap
 import com.studyforge.app.ui.screens.questions.ImportBulkQuestionBankDialog
 import com.studyforge.app.ui.theme.ErrorRed
@@ -112,61 +113,55 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .padding(end = 8.dp)
                 ) {
-                    Text(
-                        text = "StudyForge",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.6).sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "Personal Learning Operating System",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    StudyForgeBrandLogo(size = 44.dp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "StudyForge",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.6).sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Personal Learning Operating System",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = WarningYellow.copy(alpha = 0.14f),
-                        border = BorderStroke(0.5.dp, WarningYellow.copy(alpha = 0.35f)),
-                        modifier = Modifier.padding(end = 6.dp)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = WarningYellow.copy(alpha = 0.14f),
+                    border = BorderStroke(0.75.dp, WarningYellow.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocalFireDepartment,
-                                contentDescription = "Streak",
-                                tint = WarningYellow,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${analytics.currentStreakDays}d",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = WarningYellow
-                            )
-                        }
-                    }
-
-                    IconButton(onClick = onNavigateToSettings) {
                         Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = "Streak",
+                            tint = WarningYellow,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${analytics.currentStreakDays}d",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+                            color = WarningYellow
                         )
                     }
                 }

@@ -104,6 +104,8 @@ fun AppNavigation(
     )
     val shouldShowBottomBar = currentRoute in bottomNavRoutes
 
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -111,8 +113,8 @@ fun AppNavigation(
             if (shouldShowBottomBar) {
                 Surface(
                     tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
-                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 4.dp,
+                    color = if (isDark) MaterialTheme.colorScheme.surface else com.studyforge.app.ui.theme.BottomNavBgLight,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.navigationBarsPadding()) {
@@ -120,41 +122,56 @@ fun AppNavigation(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                         )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(60.dp)
+                                .height(66.dp)
                                 .padding(horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             val items = remember {
                                 listOf(
-                                    Triple(Screen.Home.route, Icons.Default.Home, "Home"),
-                                    Triple(Screen.Practice.route, Icons.Default.PlayCircle, "Practice"),
-                                    Triple(Screen.Library.route, Icons.Default.Folder, "Library"),
-                                    Triple(Screen.Analytics.route, Icons.Default.QueryStats, "Stats"),
-                                    Triple(Screen.Planner.route, Icons.Default.CalendarMonth, "Planner"),
-                                    Triple(Screen.Settings.route, Icons.Default.Settings, "Settings")
+                                    Triple(Screen.Home.route, "🏠", "Home"),
+                                    Triple(Screen.Practice.route, "🧠", "Practice"),
+                                    Triple(Screen.Library.route, "📚", "Library"),
+                                    Triple(Screen.Analytics.route, "📊", "Stats"),
+                                    Triple(Screen.Planner.route, "📅", "Planner"),
+                                    Triple(Screen.Settings.route, "⚙️", "Settings")
                                 )
                             }
 
-                            items.forEach { (route, icon, label) ->
+                            val navigateToBottomTab: (String) -> Unit = { targetRoute ->
+                                if (targetRoute == Screen.Home.route) {
+                                    val popped = navController.popBackStack(Screen.Home.route, inclusive = false)
+                                    if (!popped && currentRoute != Screen.Home.route) {
+                                        navController.navigate(Screen.Home.route) {
+                                            popUpTo(navController.graph.id) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                } else if (currentRoute != targetRoute) {
+                                    navController.navigate(targetRoute) {
+                                        popUpTo(Screen.Home.route) {
+                                            inclusive = false
+                                            saveState = false
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = false
+                                    }
+                                }
+                            }
+
+                            items.forEach { (route, emojiIcon, label) ->
                                 val selected = currentRoute == route
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight()
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(RoundedCornerShape(14.dp))
                                         .clickable {
-                                            if (currentRoute != route) {
-                                                navController.navigate(route) {
-                                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                                    launchSingleTop = true
-                                                    restoreState = true
-                                                }
-                                            }
+                                            navigateToBottomTab(route)
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -164,31 +181,32 @@ fun AppNavigation(
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .width(46.dp)
-                                                .height(28.dp)
-                                                .clip(RoundedCornerShape(14.dp))
+                                                .width(52.dp)
+                                                .height(32.dp)
+                                                .clip(RoundedCornerShape(16.dp))
                                                 .background(
-                                                    if (selected) MaterialTheme.colorScheme.primaryContainer
-                                                    else Color.Transparent
+                                                    if (selected) {
+                                                        if (isDark) MaterialTheme.colorScheme.primaryContainer
+                                                        else com.studyforge.app.ui.theme.BottomNavPillLight
+                                                    } else {
+                                                        Color.Transparent
+                                                    }
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
-                                                imageVector = icon,
-                                                contentDescription = label,
-                                                modifier = Modifier.size(20.dp),
-                                                tint = if (selected) MaterialTheme.colorScheme.primary
-                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                            Text(
+                                                text = emojiIcon,
+                                                fontSize = 18.sp
                                             )
                                         }
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text(
                                             text = label,
                                             style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 10.sp,
+                                                fontSize = 11.sp,
                                                 fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium
                                             ),
-                                            color = if (selected) MaterialTheme.colorScheme.primary
+                                            color = if (selected) MaterialTheme.colorScheme.onSurface
                                             else MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
                                             softWrap = false
@@ -225,8 +243,18 @@ fun AppNavigation(
                     onNavigateToRevision = { navController.navigate(Screen.RevisionQueue.route) },
                     onNavigateToMistakes = { cId -> navController.navigate(Screen.MistakeBook.createRoute(cId)) },
                     onNavigateToSearch = { navController.navigate(Screen.GlobalSearch.route) },
-                    onNavigateToPractice = { navController.navigate(Screen.Practice.route) },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                    onNavigateToPractice = {
+                        navController.navigate(Screen.Practice.route) {
+                            popUpTo(Screen.Home.route) { inclusive = false; saveState = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route) {
+                            popUpTo(Screen.Home.route) { inclusive = false; saveState = false }
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
 
@@ -537,7 +565,14 @@ fun AppNavigation(
             composable(Screen.Planner.route) {
                 PlannerScreen(
                     viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = {
+                        if (!navController.popBackStack(Screen.Home.route, inclusive = false)) {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    }
                 )
             }
 
@@ -545,7 +580,14 @@ fun AppNavigation(
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     viewModel = viewModel,
-                    onBack = { navController.popBackStack() },
+                    onBack = {
+                        if (!navController.popBackStack(Screen.Home.route, inclusive = false)) {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onNavigateToHowToUse = { navController.navigate(Screen.HowToUse.route) }
                 )
             }

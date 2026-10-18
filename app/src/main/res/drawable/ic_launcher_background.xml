@@ -5,22 +5,30 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Light Cool Alabaster-Slate Background with subtle diagonal gradient -->
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="12"
-                android:startY="12"
-                android:endX="96"
-                android:endY="96"
+                android:startX="10"
+                android:startY="10"
+                android:endX="98"
+                android:endY="98"
                 android:type="linear">
-                <item android:color="#1E1B4B" android:offset="0.0" />
-                <item android:color="#2E1065" android:offset="0.5" />
-                <item android:color="#3B0764" android:offset="1.0" />
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#F4F7FA" android:offset="0.55" />
+                <item android:color="#E5EDF7" android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Subtle circular glow -->
+
+    <!-- Soft Warm Orange & Navy decorative halo rings on the light background -->
     <path
-        android:pathData="M54,20 A34,34 0 1 0 54,88 A34,34 0 1 0 54,20 Z"
-        android:fillColor="#156366F1" />
+        android:pathData="M54,18 A36,36 0 1 0 54,90 A36,36 0 1 0 54,18 Z"
+        android:fillColor="#12DF6900" />
+    <path
+        android:pathData="M54,24 A30,30 0 1 0 54,84 A30,30 0 1 0 54,24 Z"
+        android:strokeWidth="1.2"
+        android:strokeColor="#1F162238"
+        android:fillColor="#00000000" />
 </vector>

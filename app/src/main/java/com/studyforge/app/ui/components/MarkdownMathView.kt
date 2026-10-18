@@ -1206,58 +1206,78 @@ private data class CalloutStyle(
 
 @Composable
 fun HeadingText(text: String? = null, annotatedText: AnnotatedString? = null, level: Int = 1) {
-    val style = when (level) {
-        1 -> MaterialTheme.typography.headlineSmall.copy(
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 20.sp,
-            lineHeight = 28.sp
-        )
-        2 -> MaterialTheme.typography.titleLarge.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            lineHeight = 26.sp
-        )
-        3 -> MaterialTheme.typography.titleMedium.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.5.sp,
-            lineHeight = 24.sp
-        )
-        else -> MaterialTheme.typography.titleSmall.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            lineHeight = 22.sp
-        )
-    }
     val content = annotatedText ?: (text?.let { parseInlineMarkdownAndLatex(it.trim()) } ?: AnnotatedString(""))
     val barColor = MaterialTheme.colorScheme.primary
-    val barWidth = if (level <= 2) 4.dp else 3.5.dp
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = if (level <= 2) 6.dp else 4.dp, bottom = 2.dp)
-            .drawWithContent {
-                val strokePx = barWidth.toPx()
-                val insetY = 3.dp.toPx()
-                val startY = insetY.coerceAtMost(size.height / 2f)
-                val endY = (size.height - insetY).coerceAtLeast(startY)
-                drawLine(
-                    color = barColor,
-                    start = Offset(strokePx / 2f, startY),
-                    end = Offset(strokePx / 2f, endY),
-                    strokeWidth = strokePx,
-                    cap = StrokeCap.Round
-                )
-                drawContent()
-            }
-            .padding(start = 12.dp)
-    ) {
-        Text(
-            text = content,
-            style = style,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth()
-        )
+    if (level == 1) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 6.dp)
+        ) {
+            Text(
+                text = content,
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 22.sp,
+                    lineHeight = 30.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(
+                thickness = 1.2.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)
+            )
+        }
+    } else {
+        val style = when (level) {
+            2 -> MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 19.sp,
+                lineHeight = 27.sp
+            )
+            3 -> MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                lineHeight = 25.sp
+            )
+            else -> MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.5.sp,
+                lineHeight = 23.sp
+            )
+        }
+        val barWidth = if (level == 2) 4.dp else 3.5.dp
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp, bottom = 4.dp)
+                .drawWithContent {
+                    val strokePx = barWidth.toPx()
+                    val insetY = 3.dp.toPx()
+                    val startY = insetY.coerceAtMost(size.height / 2f)
+                    val endY = (size.height - insetY).coerceAtLeast(startY)
+                    drawLine(
+                        color = barColor,
+                        start = Offset(strokePx / 2f, startY),
+                        end = Offset(strokePx / 2f, endY),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round
+                    )
+                    drawContent()
+                }
+                .padding(start = 12.dp)
+        ) {
+            Text(
+                text = content,
+                style = style,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 
@@ -1267,21 +1287,25 @@ fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 4.dp, top = 2.dp, bottom = 2.dp),
+            .padding(start = 8.dp, top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.Top
     ) {
         Text(
             text = "•",
             style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
                 lineHeight = 25.sp
             ),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 8.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(end = 10.dp)
         )
         Text(
             text = content,
-            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 15.5.sp,
+                lineHeight = 25.sp
+            ),
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
@@ -1294,21 +1318,25 @@ fun NumberedListItem(number: String, text: String? = null, annotatedText: Annota
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 4.dp, top = 2.dp, bottom = 2.dp),
+            .padding(start = 8.dp, top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.Top
     ) {
         Text(
             text = "$number.",
             style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 15.5.sp,
                 lineHeight = 25.sp
             ),
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 8.dp)
+            modifier = Modifier.padding(end = 10.dp)
         )
         Text(
             text = content,
-            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 15.5.sp,
+                lineHeight = 25.sp
+            ),
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )

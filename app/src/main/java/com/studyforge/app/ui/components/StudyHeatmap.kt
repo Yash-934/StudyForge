@@ -3,8 +3,10 @@ package com.studyforge.app.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -54,13 +57,15 @@ data class DayActivity(
 
 /**
  * Ultra-fast 120 FPS Canvas-based Study Activity Heatmap.
- * Replaces 84 nested Box/Border/Clip composables with a single hardware-accelerated Canvas draw pass.
+ * High-contrast cell fills and crisp borders ensure every grid cell ("khane") is clearly
+ * visible on both pure-white Light theme cards and Dark theme cards.
  */
 @Composable
 fun StudyHeatmap(
     sessions: List<StudySessionEntity>,
     modifier: Modifier = Modifier
 ) {
+    val isDark = isSystemInDarkTheme()
     val daysList = remember(sessions) {
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -108,10 +113,17 @@ fun StudyHeatmap(
     var selectedDay by remember { mutableStateOf<DayActivity?>(null) }
     val scrollState = rememberScrollState(Int.MAX_VALUE)
 
-    val emptyCellColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-    val level1Color = Color(0xFF86EFAC)
+    val emptyCellColor = if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0)
+    val emptyBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
+
+    val level1Color = if (isDark) Color(0xFF4ADE80).copy(alpha = 0.45f) else Color(0xFF86EFAC)
+    val level1Border = if (isDark) Color(0xFF4ADE80) else Color(0xFF4ADE80)
+
     val level2Color = Color(0xFF22C55E)
+    val level2Border = Color(0xFF16A34A)
+
     val level3Color = Color(0xFF15803D)
+    val level3Border = Color(0xFF14532D)
 
     val density = LocalDensity.current
     val cellSizeDp = 16.dp
@@ -125,7 +137,7 @@ fun StudyHeatmap(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.85f)),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -140,14 +152,14 @@ fun StudyHeatmap(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
                 ) {
                     Text(
                         text = "Past 12 Weeks",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -183,6 +195,7 @@ fun StudyHeatmap(
                     val spacePx = spacingDp.toPx()
                     val stepPx = cellPx + spacePx
                     val radiusPx = cornerRadiusDp.toPx()
+                    val strokeWidthPx = 1.dp.toPx()
 
                     for (wIdx in weeks.indices) {
                         val week = weeks[wIdx]
@@ -190,17 +203,24 @@ fun StudyHeatmap(
                         for (dIdx in week.indices) {
                             val day = week[dIdx]
                             val y = dIdx * stepPx
-                            val cellColor = when {
-                                day.minutesStudied == 0 -> emptyCellColor
-                                day.minutesStudied < 25 -> level1Color
-                                day.minutesStudied < 60 -> level2Color
-                                else -> level3Color
+                            val (cellColor, borderColor) = when {
+                                day.minutesStudied == 0 -> emptyCellColor to emptyBorderColor
+                                day.minutesStudied < 25 -> level1Color to level1Border
+                                day.minutesStudied < 60 -> level2Color to level2Border
+                                else -> level3Color to level3Border
                             }
                             drawRoundRect(
                                 color = cellColor,
                                 topLeft = Offset(x, y),
                                 size = Size(cellPx, cellPx),
                                 cornerRadius = CornerRadius(radiusPx, radiusPx)
+                            )
+                            drawRoundRect(
+                                color = borderColor,
+                                topLeft = Offset(x, y),
+                                size = Size(cellPx, cellPx),
+                                cornerRadius = CornerRadius(radiusPx, radiusPx),
+                                style = Stroke(width = strokeWidthPx)
                             )
                         }
                     }
@@ -220,12 +240,18 @@ fun StudyHeatmap(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                listOf(emptyCellColor, level1Color, level2Color, level3Color).forEach { c ->
+                listOf(
+                    emptyCellColor to emptyBorderColor,
+                    level1Color to level1Border,
+                    level2Color to level2Border,
+                    level3Color to level3Border
+                ).forEach { (fill, stroke) ->
                     Box(
                         modifier = Modifier
-                            .size(11.dp)
+                            .size(12.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(c)
+                            .background(fill)
+                            .border(1.dp, stroke, RoundedCornerShape(3.dp))
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                 }

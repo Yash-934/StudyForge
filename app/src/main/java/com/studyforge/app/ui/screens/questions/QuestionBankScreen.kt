@@ -66,10 +66,28 @@ import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.OptionMathText
 import com.studyforge.app.ui.components.StudyCard
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import com.studyforge.app.ui.theme.McqBadgeIdleBg
+import com.studyforge.app.ui.theme.McqBadgeIdleBgDark
+import com.studyforge.app.ui.theme.McqBadgeIdleText
+import com.studyforge.app.ui.theme.McqBadgeIdleTextDark
+import com.studyforge.app.ui.theme.McqCorrectBadgeBg
+import com.studyforge.app.ui.theme.McqCorrectCardBg
+import com.studyforge.app.ui.theme.McqCorrectCardBgDark
+import com.studyforge.app.ui.theme.McqCorrectCardBorder
+import com.studyforge.app.ui.theme.McqCorrectText
+import com.studyforge.app.ui.theme.McqCorrectTextDark
+import com.studyforge.app.ui.theme.MintTagBg
+import com.studyforge.app.ui.theme.MintTagBgDark
+import com.studyforge.app.ui.theme.MintTagText
+import com.studyforge.app.ui.theme.MintTagTextDark
 import com.studyforge.app.ui.theme.SuccessGreen
+import com.studyforge.app.ui.theme.WarmOrangeBadge
 import com.studyforge.app.viewmodel.StudyViewModel
 import org.json.JSONArray
 
@@ -332,8 +350,10 @@ fun QuestionBankCard(
 
     val hasExplanation = question.explanation.isNotBlank() || question.detailedSolution.isNotBlank()
 
+    val isDark = isSystemInDarkTheme()
+
     StudyCard(
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(22.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(
@@ -341,95 +361,154 @@ fun QuestionBankCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    DifficultyBadge(difficulty = question.difficulty)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${question.type.displayName} • +${question.marks} / -${question.negativeMarks}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Row {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = WarmOrangeBadge
+                    ) {
+                        Text(
+                            text = "Q.${question.id}",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isDark) MintTagBgDark else MintTagBg
+                    ) {
+                        Text(
+                            text = "${question.difficulty} • +${question.marks} / -${question.negativeMarks}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (isDark) MintTagTextDark else MintTagText,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Surface(
+                        onClick = onEdit,
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("✏️", fontSize = 14.sp)
+                        }
+                    }
+                    Surface(
+                        onClick = onDelete,
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("🗑️", fontSize = 14.sp)
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             MarkdownMathView(markdownText = question.questionText)
 
             if (optionsList.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                optionsList.forEachIndexed { idx, opt ->
-                    val letter = ('A' + idx).toChar()
-                    val isCorrect = correctList.any { ans ->
-                        ans.equals(idx.toString(), ignoreCase = true) ||
-                        ans.equals(letter.toString(), ignoreCase = true) ||
-                        ans.trim().equals(opt.trim(), ignoreCase = true)
-                    }
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    optionsList.forEachIndexed { idx, opt ->
+                        val letter = ('A' + idx).toChar()
+                        val isCorrect = correctList.any { ans ->
+                            ans.equals(idx.toString(), ignoreCase = true) ||
+                                ans.equals(letter.toString(), ignoreCase = true) ||
+                                ans.trim().equals(opt.trim(), ignoreCase = true)
+                        }
 
-                    if (isCorrect) {
+                        val cardBg = if (isCorrect) {
+                            if (isDark) McqCorrectCardBgDark else McqCorrectCardBg
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        }
+                        val cardBorder = if (isCorrect) {
+                            McqCorrectCardBorder
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        }
+                        val badgeBg = if (isCorrect) {
+                            McqCorrectBadgeBg
+                        } else {
+                            if (isDark) McqBadgeIdleBgDark else McqBadgeIdleBg
+                        }
+                        val badgeTextColor = if (isCorrect) {
+                            Color.White
+                        } else {
+                            if (isDark) McqBadgeIdleTextDark else McqBadgeIdleText
+                        }
+                        val optionTextColor = if (isCorrect) {
+                            if (isDark) McqCorrectTextDark else McqCorrectText
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
+
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = SuccessGreen.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(14.dp),
+                            color = cardBg,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 3.dp)
-                                .border(1.5.dp, SuccessGreen, RoundedCornerShape(12.dp))
+                                .border(
+                                    width = if (isCorrect) 1.5.dp else 1.2.dp,
+                                    color = cardBorder,
+                                    shape = RoundedCornerShape(14.dp)
+                                )
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Correct Option",
-                                    tint = SuccessGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "$letter) ",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = SuccessGreen
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(9.dp),
+                                    color = badgeBg,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "$letter",
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 13.5.sp
+                                            ),
+                                            color = badgeTextColor
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Box(modifier = Modifier.weight(1f)) {
                                     OptionMathText(
                                         text = opt,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                        color = SuccessGreen,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = if (isCorrect) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 15.sp,
+                                            lineHeight = 22.sp
+                                        ),
+                                        color = optionTextColor,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
-                            }
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "$letter) ",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Box(modifier = Modifier.weight(1f)) {
-                                OptionMathText(
-                                    text = opt,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                if (isCorrect) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Correct Option",
+                                        tint = McqCorrectBadgeBg,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }

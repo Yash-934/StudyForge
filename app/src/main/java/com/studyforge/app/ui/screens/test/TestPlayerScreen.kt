@@ -68,6 +68,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.key
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.unit.sp
 import com.studyforge.app.data.local.entities.QuestionEntity
 import com.studyforge.app.domain.model.QuestionType
 import com.studyforge.app.ui.components.DifficultyBadge
@@ -75,8 +77,17 @@ import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.OptionMathText
 import com.studyforge.app.ui.components.StudyCard
 import com.studyforge.app.ui.theme.ErrorRed
+import com.studyforge.app.ui.theme.McqBadgeIdleBg
+import com.studyforge.app.ui.theme.McqBadgeIdleBgDark
+import com.studyforge.app.ui.theme.McqBadgeIdleText
+import com.studyforge.app.ui.theme.McqBadgeIdleTextDark
+import com.studyforge.app.ui.theme.MintTagBg
+import com.studyforge.app.ui.theme.MintTagBgDark
+import com.studyforge.app.ui.theme.MintTagText
+import com.studyforge.app.ui.theme.MintTagTextDark
 import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.ui.theme.SuccessGreen
+import com.studyforge.app.ui.theme.WarmOrangeBadge
 import com.studyforge.app.ui.theme.WarningYellow
 import com.studyforge.app.viewmodel.StudyViewModel
 import org.json.JSONArray
@@ -241,7 +252,8 @@ fun TestPlayerScreen(
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
-            // Question Metadata
+            // Question Metadata with Reference Warm Orange Q.X Badge + Mint Tag
+            val isDark = isSystemInDarkTheme()
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -249,17 +261,33 @@ fun TestPlayerScreen(
             ) {
                 Row(
                     modifier = Modifier.weight(1f, fill = false),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    DifficultyBadge(difficulty = currentQ.difficulty)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${currentQ.type.displayName} • +${currentQ.marks} / -${currentQ.negativeMarks}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = WarmOrangeBadge
+                    ) {
+                        Text(
+                            text = "Q.${currentIndex + 1}",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isDark) MintTagBgDark else MintTagBg
+                    ) {
+                        Text(
+                            text = "${currentQ.difficulty} • +${currentQ.marks} / -${currentQ.negativeMarks}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (isDark) MintTagTextDark else MintTagText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
                 }
 
                 if (currentAnswers.isNotEmpty()) {
@@ -556,39 +584,64 @@ fun OptionCard(
     isMultiple: Boolean,
     onClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val badgeBg = when {
+        isSelected -> MaterialTheme.colorScheme.primary
+        isDark -> McqBadgeIdleBgDark
+        else -> McqBadgeIdleBg
+    }
+    val badgeTextColor = when {
+        isSelected -> MaterialTheme.colorScheme.onPrimary
+        isDark -> McqBadgeIdleTextDark
+        else -> McqBadgeIdleText
+    }
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(14.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) else MaterialTheme.colorScheme.surface,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 3.dp)
             .border(
-                1.dp,
-                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                RoundedCornerShape(16.dp)
+                width = if (isSelected) 1.6.dp else 1.2.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(14.dp)
             )
+            .clip(RoundedCornerShape(14.dp))
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isMultiple) {
                 Checkbox(checked = isSelected, onCheckedChange = { onClick() })
-            } else {
-                RadioButton(selected = isSelected, onClick = { onClick() })
+                Spacer(modifier = Modifier.width(4.dp))
             }
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "$letter)",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                shape = RoundedCornerShape(9.dp),
+                color = badgeBg,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "$letter",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 14.sp
+                        ),
+                        color = badgeTextColor
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
             Box(modifier = Modifier.weight(1f)) {
                 OptionMathText(
                     text = text,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 15.5.sp,
+                        lineHeight = 23.sp
+                    ),
                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
             }

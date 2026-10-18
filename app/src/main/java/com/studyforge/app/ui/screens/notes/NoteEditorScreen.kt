@@ -175,23 +175,31 @@ fun NoteEditorScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = if (isEditing) {
-                            if (activeNote != null) "Edit Note" else "New Note"
-                        } else {
-                            title.ifBlank { "Study Note" }
-                        },
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 22.sp
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (isEditing) {
+                        Text(
+                            text = if (activeNote != null) "Edit Note" else "New Note",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 22.sp
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Text(
+                            text = "Back",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            maxLines = 1
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(
@@ -205,7 +213,8 @@ fun NoteEditorScreen(
                     ) {
                         Icon(
                             imageVector = if (isEditing && activeNoteId > 0L) Icons.Default.Close else Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
@@ -213,12 +222,17 @@ fun NoteEditorScreen(
                     // Quick Switcher between notes in this chapter
                     if (chapterNotes.isNotEmpty()) {
                         Box {
-                            IconButton(onClick = { showNoteListMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                    contentDescription = "Switch Note (${chapterNotes.size})",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                            Surface(
+                                onClick = { showNoteListMenu = true },
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier
+                                    .padding(horizontal = 3.dp)
+                                    .size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(text = "📚", fontSize = 16.sp)
+                                }
                             }
                             DropdownMenu(
                                 expanded = showNoteListMenu,
@@ -245,7 +259,7 @@ fun NoteEditorScreen(
                                             if (n.id == activeNoteId) {
                                                 Icon(Icons.Default.Check, contentDescription = "Active", tint = MaterialTheme.colorScheme.primary)
                                             } else {
-                                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+                                                Text("📓", fontSize = 15.sp)
                                             }
                                         },
                                         onClick = {
@@ -304,19 +318,43 @@ fun NoteEditorScreen(
                             )
                         }
                     } else {
-                        IconButton(onClick = { showAiDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "AI Assistant",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        Surface(
+                            onClick = { showAiDialog = true },
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp)
+                                .size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "✨", fontSize = 16.sp)
+                            }
                         }
-                        IconButton(onClick = { isEditing = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit Note",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        Surface(
+                            onClick = { isEditing = true },
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp)
+                                .size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "✏️", fontSize = 15.sp)
+                            }
+                        }
+                        if (activeNoteId > 0L) {
+                            Surface(
+                                onClick = { showDeleteDialog = true },
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
+                                modifier = Modifier
+                                    .padding(horizontal = 3.dp)
+                                    .size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(text = "🗑️", fontSize = 15.sp)
+                                }
+                            }
                         }
                         Box {
                             IconButton(onClick = { showMoreActionsMenu = true }) {
@@ -332,11 +370,7 @@ fun NoteEditorScreen(
                                 DropdownMenuItem(
                                     text = { Text(if (isPinned) "Unpin Note" else "Pin Note") },
                                     leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.PushPin,
-                                            contentDescription = null,
-                                            tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Text(text = "📌", fontSize = 15.sp)
                                     },
                                     onClick = {
                                         isPinned = !isPinned
@@ -346,40 +380,19 @@ fun NoteEditorScreen(
                                 DropdownMenuItem(
                                     text = { Text(if (isFavorite) "Remove Favorite" else "Mark Favorite") },
                                     leadingIcon = {
-                                        Icon(
-                                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                            contentDescription = null,
-                                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Text(text = if (isFavorite) "❤️" else "🤍", fontSize = 15.sp)
                                     },
                                     onClick = {
                                         isFavorite = !isFavorite
                                         showMoreActionsMenu = false
                                     }
                                 )
-                                if (activeNoteId > 0L) {
-                                    HorizontalDivider()
-                                    DropdownMenuItem(
-                                        text = { Text("Delete Note", color = MaterialTheme.colorScheme.error) },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.error
-                                            )
-                                        },
-                                        onClick = {
-                                            showMoreActionsMenu = false
-                                            showDeleteDialog = true
-                                        }
-                                    )
-                                }
                             }
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
@@ -396,10 +409,10 @@ fun NoteEditorScreen(
                 // In full screen preview mode, an edit action button
                 ExtendedFloatingActionButton(
                     onClick = { isEditing = true },
-                    icon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                    text = { Text("Edit Note") },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    icon = { Text("✏️", fontSize = 15.sp) },
+                    text = { Text("Edit Note", fontWeight = FontWeight.Bold) },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             }
         },
@@ -458,60 +471,67 @@ fun NoteEditorScreen(
                 }
             }
         } else {
-            // DIRECT FULL SCREEN PREVIEW MODE (Clean 120 FPS virtualized reader)
+            // DIRECT FULL SCREEN PREVIEW MODE (Clean 120 FPS virtualized reader in a crisp white sheet card)
             val parsedNodes = remember(contentMarkdown) {
                 parseMarkdownToNodes(contentMarkdown.ifBlank { "*No content entered yet.*" })
             }
+            val sheetColor = MaterialTheme.colorScheme.surface
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 item(key = "note_title_header") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp, bottom = 10.dp)
+                    Surface(
+                        color = sheetColor,
+                        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = title.ifBlank { "Untitled Note" },
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 21.sp,
-                                lineHeight = 29.sp
-                            ),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 8.dp)
+                        ) {
+                            Text(
+                                text = title.ifBlank { "Untitled Note" },
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 22.sp,
+                                    lineHeight = 30.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                        if (chapter != null) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
-                            ) {
-                                Text(
-                                    text = chapter.name,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        lineHeight = 18.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
+                            if (chapter != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.secondaryContainer
+                                ) {
+                                    Text(
+                                        text = "📓 ${chapter.name}",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 18.sp
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
                             }
-                        }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-                        HorizontalDivider(
-                            thickness = 0.75.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider(
+                                thickness = 1.2.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
                     }
                 }
 
@@ -522,7 +542,28 @@ fun NoteEditorScreen(
                         "${node.javaClass.simpleName}_${index}_${node.hashCode()}"
                     }
                 ) { index ->
-                    RenderMarkdownNode(parsedNodes[index])
+                    Surface(
+                        color = sheetColor,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 18.dp, vertical = 3.dp)
+                        ) {
+                            RenderMarkdownNode(parsedNodes[index])
+                        }
+                    }
+                }
+
+                item(key = "note_sheet_footer") {
+                    Surface(
+                        color = sheetColor,
+                        shape = RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(22.dp)
+                    ) {}
                 }
 
                 item(key = "note_bottom_spacer") {
