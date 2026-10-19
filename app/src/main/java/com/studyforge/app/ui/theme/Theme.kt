@@ -58,7 +58,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun StudyForgeTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     dynamicColor: Boolean = false, // Keep consistent branding colors by default
     content: @Composable () -> Unit
 ) {

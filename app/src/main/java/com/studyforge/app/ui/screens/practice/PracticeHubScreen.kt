@@ -91,6 +91,8 @@ fun PracticeHubScreen(
     onNavigateToQuestionBank: (Long) -> Unit,
     onNavigateToResult: (Long) -> Unit,
     onNavigateToTestPlayer: (Long) -> Unit = {},
+    onNavigateToFocusTimer: () -> Unit = {},
+    onNavigateToBookmarks: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -255,6 +257,28 @@ fun PracticeHubScreen(
         // Practice Modules Grid / List
         item {
             SectionHeader(title = "Practice Modes")
+        }
+
+        item {
+            PracticeModeItem(
+                title = "Pomodoro & Deep Focus Timer",
+                subtitle = "25m / 50m focus blocks & offline study logger",
+                icon = Icons.Default.Timer,
+                accentColor = com.studyforge.app.ui.theme.WarmOrangeBadge,
+                badge = "Focus",
+                onClick = onNavigateToFocusTimer
+            )
+        }
+
+        item {
+            PracticeModeItem(
+                title = "Starred & Bookmarks Vault",
+                subtitle = "High-yield bookmarked MCQs, formulas & notes",
+                icon = Icons.Default.AutoAwesome,
+                accentColor = com.studyforge.app.ui.theme.GoldenAmberBar,
+                badge = "Vault",
+                onClick = onNavigateToBookmarks
+            )
         }
 
         item {

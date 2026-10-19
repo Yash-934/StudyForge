@@ -109,6 +109,10 @@ class StudyRepository(private val db: AppDatabase) {
     suspend fun updateFormula(formula: FormulaEntity) = db.formulaDao().updateFormula(formula)
     suspend fun deleteFormula(formula: FormulaEntity) = db.formulaDao().deleteFormula(formula)
 
+    // Study Sessions
+    suspend fun insertStudySession(session: StudySessionEntity): Long =
+        db.studySessionDao().insertSession(session)
+
     // Questions
     suspend fun insertQuestion(question: QuestionEntity): Long = db.questionDao().insertQuestion(question)
     suspend fun insertQuestions(questions: List<QuestionEntity>): List<Long> {

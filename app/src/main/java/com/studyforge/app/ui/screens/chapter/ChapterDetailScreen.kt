@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -101,6 +102,7 @@ fun ChapterDetailScreen(
     onNavigateToMistakes: (Long) -> Unit,
     onNavigateToChapterRevision: (Long) -> Unit,
     onNavigateToFlashcards: (Long) -> Unit,
+    onNavigateToFocusTimer: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val chapters by viewModel.chapters.collectAsState()
@@ -431,6 +433,18 @@ fun ChapterDetailScreen(
                     accentColor = Color(0xFF0284C7),
                     badgeText = "${chapterFlashcards.size}",
                     onClick = { onNavigateToFlashcards(chapterId) }
+                )
+            }
+
+            // Pomodoro & Deep Focus Timer Card for this Chapter
+            item {
+                ModuleHubCard(
+                    title = "Pomodoro Focus Session",
+                    description = "Start a 25m / 50m study timer linked directly to this chapter",
+                    icon = Icons.Default.Timer,
+                    accentColor = com.studyforge.app.ui.theme.WarmOrangeBadge,
+                    badgeText = "Focus",
+                    onClick = { onNavigateToFocusTimer(chapterId) }
                 )
             }
 

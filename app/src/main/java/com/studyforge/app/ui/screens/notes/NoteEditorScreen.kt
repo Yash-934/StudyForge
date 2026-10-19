@@ -69,6 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.studyforge.app.domain.pdf.NotePdfExporter
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.MathEditorToolbar
 import com.studyforge.app.ui.components.RenderMarkdownNode
@@ -136,6 +137,27 @@ fun NoteEditorScreen(
                     Toast.makeText(context, "Image attached from gallery!", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(context, "Failed to import image: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val pdfExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            coroutineScope.launch {
+                val res = NotePdfExporter.exportNoteToPdfUri(
+                    context = context,
+                    outputUri = uri,
+                    noteTitle = title.ifBlank { "StudyForge Note" },
+                    chapterName = chapter?.name ?: "Chapter",
+                    markdownContent = contentMarkdown
+                )
+                if (res.isSuccess) {
+                    viewModel.showMessage("Note exported as PDF successfully! 📄")
+                } else {
+                    viewModel.showMessage("PDF export failed: ${res.exceptionOrNull()?.message}")
                 }
             }
         }
@@ -342,6 +364,24 @@ fun NoteEditorScreen(
                                 Text(text = "✏️", fontSize = 15.sp)
                             }
                         }
+                        Surface(
+                            onClick = {
+                                val safeFileName = title.ifBlank { "StudyForge_Note" }
+                                    .replace(Regex("[^a-zA-Z0-9_\\- ]"), "")
+                                    .trim()
+                                    .replace(" ", "_") + ".pdf"
+                                pdfExportLauncher.launch(safeFileName)
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp)
+                                .size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "📄", fontSize = 15.sp)
+                            }
+                        }
                         if (activeNoteId > 0L) {
                             Surface(
                                 onClick = { showDeleteDialog = true },
@@ -368,6 +408,20 @@ fun NoteEditorScreen(
                                 onDismissRequest = { showMoreActionsMenu = false }
                             ) {
                                 DropdownMenuItem(
+                                    text = { Text("Export Note as PDF") },
+                                    leadingIcon = {
+                                        Text(text = "📄", fontSize = 15.sp)
+                                    },
+                                    onClick = {
+                                        showMoreActionsMenu = false
+                                        val safeFileName = title.ifBlank { "StudyForge_Note" }
+                                            .replace(Regex("[^a-zA-Z0-9_\\- ]"), "")
+                                            .trim()
+                                            .replace(" ", "_") + ".pdf"
+                                        pdfExportLauncher.launch(safeFileName)
+                                    }
+                                )
+                                DropdownMenuItem(
                                     text = { Text(if (isPinned) "Unpin Note" else "Pin Note") },
                                     leadingIcon = {
                                         Text(text = "📌", fontSize = 15.sp)
@@ -375,6 +429,18 @@ fun NoteEditorScreen(
                                     onClick = {
                                         isPinned = !isPinned
                                         showMoreActionsMenu = false
+                                        if (activeNoteId > 0L) {
+                                            viewModel.saveNote(
+                                                id = activeNoteId,
+                                                chapterId = chapterId,
+                                                subjectId = chapter?.subjectId ?: 1L,
+                                                batchId = chapter?.batchId ?: 1L,
+                                                title = title.ifBlank { "Untitled Note" },
+                                                contentMarkdown = contentMarkdown,
+                                                isFavorite = isFavorite,
+                                                isPinned = isPinned
+                                            )
+                                        }
                                     }
                                 )
                                 DropdownMenuItem(
@@ -385,6 +451,18 @@ fun NoteEditorScreen(
                                     onClick = {
                                         isFavorite = !isFavorite
                                         showMoreActionsMenu = false
+                                        if (activeNoteId > 0L) {
+                                            viewModel.saveNote(
+                                                id = activeNoteId,
+                                                chapterId = chapterId,
+                                                subjectId = chapter?.subjectId ?: 1L,
+                                                batchId = chapter?.batchId ?: 1L,
+                                                title = title.ifBlank { "Untitled Note" },
+                                                contentMarkdown = contentMarkdown,
+                                                isFavorite = isFavorite,
+                                                isPinned = isPinned
+                                            )
+                                        }
                                     }
                                 )
                             }

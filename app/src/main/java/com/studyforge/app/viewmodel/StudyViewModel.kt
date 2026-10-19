@@ -65,10 +65,24 @@ class StudyViewModel(
 
     // Preferences / Settings State
     val themeMode: StateFlow<String> = preferencesRepository.themeMode
-        .stateIn(viewModelScope, SharingStarted.Eagerly, "SYSTEM")
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "LIGHT")
 
     val geminiApiKeyOverride: StateFlow<String> = preferencesRepository.geminiApiKeyOverride
         .stateIn(viewModelScope, SharingStarted.Eagerly, "")
+
+    val dailyStudyGoalMins: StateFlow<Int> = preferencesRepository.dailyStudyGoalMins
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 120)
+
+    val dailyGoalMinutes: StateFlow<Int> get() = dailyStudyGoalMins
+
+    val dailyQuestionsGoal: StateFlow<Int> = preferencesRepository.dailyQuestionsGoal
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 30)
+
+    val targetExamName: StateFlow<String> = preferencesRepository.targetExamName
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "Target Exam")
+
+    val targetExamDateMillis: StateFlow<Long> = preferencesRepository.targetExamDateMillis
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
 
     // Global AI Assistant initialized with preferences provider
     val aiAssistant: AiStudyAssistant = GeminiAiStudyAssistant(
@@ -186,6 +200,48 @@ class StudyViewModel(
         viewModelScope.launch {
             preferencesRepository.setGeminiApiKeyOverride(key.trim())
             showMessage(if (key.isBlank()) "Reset to default Gemini API" else "Gemini API key saved")
+        }
+    }
+
+    fun updateStudyGoalsAndExam(
+        dailyStudyMins: Int,
+        dailyQuestions: Int,
+        examName: String,
+        examDateMillis: Long
+    ) {
+        viewModelScope.launch {
+            preferencesRepository.setDailyGoalsAndExam(
+                dailyStudyMins = dailyStudyMins,
+                dailyQuestions = dailyQuestions,
+                examName = examName,
+                examDateMillis = examDateMillis
+            )
+            showMessage("Daily study goals & target exam updated!")
+        }
+    }
+
+    fun logStudySession(
+        batchId: Long? = null,
+        subjectId: Long? = null,
+        chapterId: Long? = null,
+        durationMinutes: Int,
+        questionsSolved: Int = 0,
+        notes: String = ""
+    ) {
+        viewModelScope.launch {
+            val safeMins = durationMinutes.coerceAtLeast(1)
+            repository.insertStudySession(
+                StudySessionEntity(
+                    batchId = batchId,
+                    subjectId = subjectId,
+                    chapterId = chapterId,
+                    durationMinutes = safeMins,
+                    questionsSolved = questionsSolved.coerceAtLeast(0),
+                    dateMillis = System.currentTimeMillis(),
+                    notes = notes.trim()
+                )
+            )
+            showMessage("Logged ${safeMins}m focus session! Heatmap updated.")
         }
     }
 
@@ -323,6 +379,14 @@ class StudyViewModel(
         }
     }
 
+    fun toggleNoteFavorite(note: NoteEntity) {
+        viewModelScope.launch {
+            val updated = note.copy(isFavorite = !note.isFavorite, updatedAt = System.currentTimeMillis())
+            repository.updateNote(updated)
+            showMessage(if (updated.isFavorite) "Added note to Starred Vault ⭐" else "Removed note from Starred Vault")
+        }
+    }
+
     // -------------------------------------------------------------
     // Formula Vault
     // -------------------------------------------------------------
@@ -334,7 +398,8 @@ class StudyViewModel(
         title: String,
         formulaLatex: String,
         explanation: String = "",
-        tags: List<String> = emptyList()
+        tags: List<String> = emptyList(),
+        isFavorite: Boolean = false
     ) {
         viewModelScope.launch {
             val formula = FormulaEntity(
@@ -345,7 +410,8 @@ class StudyViewModel(
                 title = title.trim(),
                 formulaLatex = formulaLatex.trim(),
                 explanation = explanation.trim(),
-                tagsJson = JSONArray(tags).toString()
+                tagsJson = JSONArray(tags).toString(),
+                isFavorite = isFavorite
             )
             if (id == 0L) {
                 repository.insertFormula(formula)
@@ -354,6 +420,14 @@ class StudyViewModel(
                 repository.updateFormula(formula)
                 showMessage("Formula updated")
             }
+        }
+    }
+
+    fun toggleFormulaFavorite(formula: FormulaEntity) {
+        viewModelScope.launch {
+            val updated = formula.copy(isFavorite = !formula.isFavorite)
+            repository.updateFormula(updated)
+            showMessage(if (updated.isFavorite) "Formula starred to Vault ⭐" else "Formula removed from Starred")
         }
     }
 
@@ -416,6 +490,15 @@ class StudyViewModel(
         viewModelScope.launch {
             repository.deleteQuestion(question)
             showMessage("Question deleted")
+        }
+    }
+
+    fun toggleQuestionBookmark(question: QuestionEntity) {
+        viewModelScope.launch {
+            val newState = !(question.isBookmarked || question.isFavorite)
+            val updated = question.copy(isBookmarked = newState, isFavorite = newState)
+            repository.updateQuestion(updated)
+            showMessage(if (newState) "Question bookmarked to Starred Vault ⭐" else "Bookmark removed")
         }
     }
 
@@ -645,6 +728,10 @@ class StudyViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             repository.recordQuestionAttempt(questionId, wasCorrect)
         }
+    }
+
+    fun recordInteractiveQuestionAttempt(questionId: Long, wasCorrect: Boolean) {
+        recordQuestionAttempt(questionId, wasCorrect)
     }
 
     // -------------------------------------------------------------

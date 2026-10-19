@@ -78,4 +78,9 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object HowToUse : Screen("how_to_use")
     object GlobalSearch : Screen("global_search")
+    object Bookmarks : Screen("bookmarks_vault")
+    object BookmarksVault : Screen("bookmarks_vault")
+    object FocusTimer : Screen("focus_timer") {
+        fun createRoute(chapterId: Long = -1L) = "focus_timer"
+    }
 }

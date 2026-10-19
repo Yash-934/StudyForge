@@ -51,9 +51,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.runtime.collectAsState
 import com.studyforge.app.ui.screens.analytics.AnalyticsScreen
+import com.studyforge.app.ui.screens.bookmarks.BookmarksVaultScreen
 import com.studyforge.app.ui.screens.chapter.ChapterDetailScreen
 import com.studyforge.app.ui.screens.flashcards.FlashcardsScreen
+import com.studyforge.app.ui.screens.focus.FocusTimerScreen
 import com.studyforge.app.ui.screens.formula.FormulaVaultScreen
 import com.studyforge.app.ui.screens.home.HomeScreen
 import com.studyforge.app.ui.screens.jsonimport.JsonImportScreen
@@ -104,7 +107,13 @@ fun AppNavigation(
     )
     val shouldShowBottomBar = currentRoute in bottomNavRoutes
 
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val themeMode by viewModel.themeMode.collectAsState()
+    val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = when (themeMode) {
+        "DARK" -> true
+        "LIGHT" -> false
+        else -> systemDark
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -254,6 +263,12 @@ fun AppNavigation(
                             popUpTo(Screen.Home.route) { inclusive = false; saveState = false }
                             launchSingleTop = true
                         }
+                    },
+                    onNavigateToFocusTimer = {
+                        navController.navigate(Screen.FocusTimer.route)
+                    },
+                    onNavigateToBookmarks = {
+                        navController.navigate(Screen.BookmarksVault.route)
                     }
                 )
             }
@@ -269,7 +284,9 @@ fun AppNavigation(
                     onNavigateToTests = { cId -> navController.navigate(Screen.TestList.createRoute(cId)) },
                     onNavigateToQuestionBank = { cId -> navController.navigate(Screen.QuestionBank.createRoute(cId, -1L)) },
                     onNavigateToResult = { aId -> navController.navigate(Screen.TestResult.createRoute(aId)) },
-                    onNavigateToTestPlayer = { tId -> navController.navigate(Screen.TestPlayer.createRoute(tId)) }
+                    onNavigateToTestPlayer = { tId -> navController.navigate(Screen.TestPlayer.createRoute(tId)) },
+                    onNavigateToFocusTimer = { navController.navigate(Screen.FocusTimer.route) },
+                    onNavigateToBookmarks = { navController.navigate(Screen.BookmarksVault.route) }
                 )
             }
 
@@ -322,7 +339,8 @@ fun AppNavigation(
                     onNavigateToSmartTest = { chId -> navController.navigate(Screen.SmartTestCreate.createRoute(chId)) },
                     onNavigateToMistakes = { chId -> navController.navigate(Screen.MistakeBook.createRoute(chId)) },
                     onNavigateToChapterRevision = { chId -> navController.navigate(Screen.ChapterRevision.createRoute(chId)) },
-                    onNavigateToFlashcards = { chId -> navController.navigate(Screen.Flashcards.createRoute(chId)) }
+                    onNavigateToFlashcards = { chId -> navController.navigate(Screen.Flashcards.createRoute(chId)) },
+                    onNavigateToFocusTimer = { navController.navigate(Screen.FocusTimer.route) }
                 )
             }
 
@@ -606,6 +624,23 @@ fun AppNavigation(
                     viewModel = viewModel,
                     onBack = { navController.popBackStack() },
                     onNavigateToChapter = { cId -> navController.navigate(Screen.ChapterDetail.createRoute(cId)) }
+                )
+            }
+
+            // Starred & Bookmarks Vault
+            composable(Screen.BookmarksVault.route) {
+                BookmarksVaultScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() },
+                    onNavigateToNoteEditor = { chId, nId -> navController.navigate(Screen.NoteEditor.createRoute(chId, nId)) }
+                )
+            }
+
+            // Pomodoro & Deep Focus Timer
+            composable(Screen.FocusTimer.route) {
+                FocusTimerScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

@@ -82,13 +82,17 @@ fun FormulaVaultScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var isRevisionMode by remember { mutableStateOf(false) }
+    var filterFavoritesOnly by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
 
-    val displayedFormulas = remember(filteredList, searchQuery) {
-        if (searchQuery.isBlank()) filteredList else filteredList.filter {
-            it.title.contains(searchQuery, ignoreCase = true) ||
-                it.formulaLatex.contains(searchQuery, ignoreCase = true) ||
-                it.explanation.contains(searchQuery, ignoreCase = true)
+    val displayedFormulas = remember(filteredList, searchQuery, filterFavoritesOnly) {
+        filteredList.filter { f ->
+            val matchesQuery = searchQuery.isBlank() ||
+                f.title.contains(searchQuery, ignoreCase = true) ||
+                f.formulaLatex.contains(searchQuery, ignoreCase = true) ||
+                f.explanation.contains(searchQuery, ignoreCase = true)
+            val matchesFav = !filterFavoritesOnly || f.isFavorite
+            matchesQuery && matchesFav
         }
     }
 
@@ -182,15 +186,7 @@ fun FormulaVaultScreen(
                             formula = formula,
                             isRevisionMode = isRevisionMode,
                             onToggleFavorite = {
-                                viewModel.saveFormula(
-                                    id = formula.id,
-                                    chapterId = formula.chapterId,
-                                    subjectId = formula.subjectId,
-                                    batchId = formula.batchId,
-                                    title = formula.title,
-                                    formulaLatex = formula.formulaLatex,
-                                    explanation = formula.explanation
-                                )
+                                viewModel.toggleFormulaFavorite(formula)
                             },
                             onDelete = { viewModel.deleteFormula(formula) }
                         )
@@ -243,7 +239,15 @@ fun FormulaVaultCard(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onToggleFavorite) {
+                        Icon(
+                            imageVector = if (formula.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Star Formula",
+                            tint = if (formula.isFavorite) com.studyforge.app.ui.theme.WarmOrangeBadge else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     IconButton(onClick = onDelete) {
                         Icon(
                             imageVector = Icons.Default.Delete,

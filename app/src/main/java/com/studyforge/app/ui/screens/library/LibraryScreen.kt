@@ -124,7 +124,7 @@ fun LibraryScreen(
     var subjectActionTarget by remember { mutableStateOf<SubjectEntity?>(null) }
     var subjectToEdit by remember { mutableStateOf<SubjectEntity?>(null) }
     var subjectToDelete by remember { mutableStateOf<SubjectEntity?>(null) }
-    var collapsedBatchIds by remember { mutableStateOf(setOf<Long>()) }
+    var expandedBatchIds by remember { mutableStateOf(setOf<Long>()) }
 
     val filteredBatches = remember(batches, searchQuery) {
         if (searchQuery.isBlank()) batches else batches.filter {
@@ -317,7 +317,7 @@ fun LibraryScreen(
                         batchChapters.sumOf { it.masteryScore } / batchChapters.size
                     } else 0
 
-                    val isExpanded = !collapsedBatchIds.contains(batch.id) || searchQuery.isNotBlank()
+                    val isExpanded = expandedBatchIds.contains(batch.id) || searchQuery.isNotBlank()
 
                     BatchCard(
                         batch = batch,
@@ -326,10 +326,10 @@ fun LibraryScreen(
                         avgMastery = avgMastery,
                         isExpanded = isExpanded,
                         onToggleExpand = {
-                            collapsedBatchIds = if (collapsedBatchIds.contains(batch.id)) {
-                                collapsedBatchIds - batch.id
+                            expandedBatchIds = if (expandedBatchIds.contains(batch.id)) {
+                                expandedBatchIds - batch.id
                             } else {
-                                collapsedBatchIds + batch.id
+                                expandedBatchIds + batch.id
                             }
                         },
                         onAddSubject = { showCreateSubjectDialogForBatch = batch.id },

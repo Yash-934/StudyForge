@@ -67,11 +67,17 @@ import com.studyforge.app.ui.components.OptionMathText
 import com.studyforge.app.ui.components.StudyCard
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Surface
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
+import com.studyforge.app.ui.theme.ErrorRed
+import com.studyforge.app.ui.theme.GoldenAmberBar
 import com.studyforge.app.ui.theme.McqBadgeIdleBg
 import com.studyforge.app.ui.theme.McqBadgeIdleBgDark
 import com.studyforge.app.ui.theme.McqBadgeIdleText
@@ -121,6 +127,8 @@ fun QuestionBankScreen(
     var selectedDifficulty by remember { mutableStateOf<Difficulty?>(null) }
     var selectedType by remember { mutableStateOf<QuestionType?>(null) }
     var filterUnsolvedOnly by remember { mutableStateOf(false) }
+    var filterBookmarkedOnly by remember { mutableStateOf(false) }
+    var interactivePracticeMode by remember { mutableStateOf(false) }
     var showBulkImportDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchQuery) {
@@ -132,8 +140,8 @@ fun QuestionBankScreen(
         }
     }
 
-    val filteredQuestions = remember(rawList, debouncedQuery, selectedDifficulty, selectedType, filterUnsolvedOnly) {
-        if (debouncedQuery.isBlank() && selectedDifficulty == null && selectedType == null && !filterUnsolvedOnly) {
+    val filteredQuestions = remember(rawList, debouncedQuery, selectedDifficulty, selectedType, filterUnsolvedOnly, filterBookmarkedOnly) {
+        if (debouncedQuery.isBlank() && selectedDifficulty == null && selectedType == null && !filterUnsolvedOnly && !filterBookmarkedOnly) {
             rawList
         } else {
             rawList.filter { q ->
@@ -143,7 +151,8 @@ fun QuestionBankScreen(
                 val matchesDiff = selectedDifficulty == null || q.difficulty == selectedDifficulty
                 val matchesType = selectedType == null || q.type == selectedType
                 val matchesUnsolved = !filterUnsolvedOnly || q.timesAttempted == 0
-                matchesSearch && matchesDiff && matchesType && matchesUnsolved
+                val matchesBookmarked = !filterBookmarkedOnly || q.isBookmarked || q.isFavorite
+                matchesSearch && matchesDiff && matchesType && matchesUnsolved && matchesBookmarked
             }
         }
     }
@@ -230,6 +239,35 @@ fun QuestionBankScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
+                    selected = interactivePracticeMode,
+                    onClick = { interactivePracticeMode = !interactivePracticeMode },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Psychology,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = if (interactivePracticeMode) "Self-Test: ON" else "Self-Test Mode",
+                            fontWeight = if (interactivePracticeMode) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                )
+                FilterChip(
+                    selected = filterBookmarkedOnly,
+                    onClick = { filterBookmarkedOnly = !filterBookmarkedOnly },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Bookmark,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    },
+                    label = { Text("Bookmarked") }
+                )
+                FilterChip(
                     selected = filterUnsolvedOnly,
                     onClick = { filterUnsolvedOnly = !filterUnsolvedOnly },
                     label = { Text("Unsolved") }
@@ -299,6 +337,11 @@ fun QuestionBankScreen(
                     items(filteredQuestions, key = { it.id }) { q ->
                         QuestionBankCard(
                             question = q,
+                            interactiveMode = interactivePracticeMode,
+                            onToggleBookmark = { viewModel.toggleQuestionBookmark(q) },
+                            onAttempted = { wasCorrect ->
+                                viewModel.recordInteractiveQuestionAttempt(q.id, wasCorrect)
+                            },
                             onEdit = { onNavigateToEditQuestion(q.chapterId, q.id) },
                             onDelete = { viewModel.deleteQuestion(q) }
                         )
@@ -325,10 +368,16 @@ fun QuestionBankScreen(
 @Composable
 fun QuestionBankCard(
     question: QuestionEntity,
+    interactiveMode: Boolean = false,
+    onToggleBookmark: () -> Unit = {},
+    onAttempted: (Boolean) -> Unit = {},
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var showExplanation by remember { mutableStateOf(false) }
+    var selectedOptionIdx by remember(question.id, interactiveMode) { mutableStateOf<Int?>(null) }
+    var showExplanation by remember(question.id, interactiveMode) { mutableStateOf(false) }
+    val revealAnswers = !interactiveMode || selectedOptionIdx != null
+    val isBookmarked = question.isBookmarked || question.isFavorite
 
     val optionsList = remember(question.optionsJson) {
         try {
@@ -391,6 +440,22 @@ fun QuestionBankCard(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Surface(
+                        onClick = onToggleBookmark,
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isBookmarked) GoldenAmberBar.copy(alpha = 0.22f)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                contentDescription = "Bookmark Question",
+                                tint = if (isBookmarked) GoldenAmberBar else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Surface(
                         onClick = onEdit,
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
@@ -427,28 +492,31 @@ fun QuestionBankCard(
                                 ans.equals(letter.toString(), ignoreCase = true) ||
                                 ans.trim().equals(opt.trim(), ignoreCase = true)
                         }
+                        val isUserPicked = selectedOptionIdx == idx
+                        val showCorrectHighlight = revealAnswers && isCorrect
+                        val showWrongHighlight = revealAnswers && isUserPicked && !isCorrect
 
-                        val cardBg = if (isCorrect) {
-                            if (isDark) McqCorrectCardBgDark else McqCorrectCardBg
-                        } else {
-                            MaterialTheme.colorScheme.surface
+                        val cardBg = when {
+                            showCorrectHighlight -> if (isDark) McqCorrectCardBgDark else McqCorrectCardBg
+                            showWrongHighlight -> ErrorRed.copy(alpha = 0.12f)
+                            else -> MaterialTheme.colorScheme.surface
                         }
-                        val cardBorder = if (isCorrect) {
-                            McqCorrectCardBorder
-                        } else {
-                            MaterialTheme.colorScheme.outlineVariant
+                        val cardBorder = when {
+                            showCorrectHighlight -> McqCorrectCardBorder
+                            showWrongHighlight -> ErrorRed
+                            else -> MaterialTheme.colorScheme.outlineVariant
                         }
-                        val badgeBg = if (isCorrect) {
-                            McqCorrectBadgeBg
-                        } else {
-                            if (isDark) McqBadgeIdleBgDark else McqBadgeIdleBg
+                        val badgeBg = when {
+                            showCorrectHighlight -> McqCorrectBadgeBg
+                            showWrongHighlight -> ErrorRed
+                            else -> if (isDark) McqBadgeIdleBgDark else McqBadgeIdleBg
                         }
-                        val badgeTextColor = if (isCorrect) {
+                        val badgeTextColor = if (showCorrectHighlight || showWrongHighlight) {
                             Color.White
                         } else {
                             if (isDark) McqBadgeIdleTextDark else McqBadgeIdleText
                         }
-                        val optionTextColor = if (isCorrect) {
+                        val optionTextColor = if (showCorrectHighlight) {
                             if (isDark) McqCorrectTextDark else McqCorrectText
                         } else {
                             MaterialTheme.colorScheme.onSurface
@@ -460,10 +528,16 @@ fun QuestionBankCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .border(
-                                    width = if (isCorrect) 1.5.dp else 1.2.dp,
+                                    width = if (showCorrectHighlight || showWrongHighlight) 1.5.dp else 1.2.dp,
                                     color = cardBorder,
                                     shape = RoundedCornerShape(14.dp)
                                 )
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable(enabled = interactiveMode && selectedOptionIdx == null) {
+                                    selectedOptionIdx = idx
+                                    showExplanation = true
+                                    onAttempted(isCorrect)
+                                }
                         ) {
                             Row(
                                 modifier = Modifier
@@ -492,7 +566,7 @@ fun QuestionBankCard(
                                     OptionMathText(
                                         text = opt,
                                         style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = if (isCorrect) FontWeight.Bold else FontWeight.Medium,
+                                            fontWeight = if (showCorrectHighlight) FontWeight.Bold else FontWeight.Medium,
                                             fontSize = 15.sp,
                                             lineHeight = 22.sp
                                         ),
@@ -500,12 +574,20 @@ fun QuestionBankCard(
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
-                                if (isCorrect) {
+                                if (showCorrectHighlight) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = "Correct Option",
                                         tint = McqCorrectBadgeBg,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                } else if (showWrongHighlight) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Cancel,
+                                        contentDescription = "Incorrect Option",
+                                        tint = ErrorRed,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }

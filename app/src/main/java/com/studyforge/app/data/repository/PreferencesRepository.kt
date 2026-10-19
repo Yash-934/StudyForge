@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -21,10 +22,14 @@ class PreferencesRepository(private val context: Context) {
         val KEY_DEFAULT_NEGATIVE_MARKS = doublePreferencesKey("default_negative_marks")
         val KEY_GEMINI_API_KEY_OVERRIDE = stringPreferencesKey("gemini_api_key_override")
         val KEY_ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        val KEY_DAILY_STUDY_GOAL_MINS = intPreferencesKey("daily_study_goal_mins")
+        val KEY_DAILY_QUESTIONS_GOAL = intPreferencesKey("daily_questions_goal")
+        val KEY_TARGET_EXAM_NAME = stringPreferencesKey("target_exam_name")
+        val KEY_TARGET_EXAM_DATE_MILLIS = longPreferencesKey("target_exam_date_millis")
     }
 
     val themeMode: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_THEME_MODE] ?: "SYSTEM"
+        prefs[KEY_THEME_MODE] ?: "LIGHT"
     }
 
     val defaultTestDuration: Flow<Int> = context.dataStore.data.map { prefs ->
@@ -33,6 +38,22 @@ class PreferencesRepository(private val context: Context) {
 
     val defaultNegativeMarks: Flow<Double> = context.dataStore.data.map { prefs ->
         prefs[KEY_DEFAULT_NEGATIVE_MARKS] ?: 0.25
+    }
+
+    val dailyStudyGoalMins: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_DAILY_STUDY_GOAL_MINS] ?: 120
+    }
+
+    val dailyQuestionsGoal: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_DAILY_QUESTIONS_GOAL] ?: 30
+    }
+
+    val targetExamName: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_TARGET_EXAM_NAME] ?: "Target Exam"
+    }
+
+    val targetExamDateMillis: Flow<Long> = context.dataStore.data.map { prefs ->
+        prefs[KEY_TARGET_EXAM_DATE_MILLIS] ?: 0L
     }
 
     @Volatile
@@ -68,5 +89,19 @@ class PreferencesRepository(private val context: Context) {
 
     suspend fun setOnboardingDone(done: Boolean) {
         context.dataStore.edit { it[KEY_ONBOARDING_DONE] = done }
+    }
+
+    suspend fun setDailyGoalsAndExam(
+        dailyStudyMins: Int,
+        dailyQuestions: Int,
+        examName: String,
+        examDateMillis: Long
+    ) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_DAILY_STUDY_GOAL_MINS] = dailyStudyMins.coerceIn(15, 900)
+            prefs[KEY_DAILY_QUESTIONS_GOAL] = dailyQuestions.coerceIn(5, 500)
+            prefs[KEY_TARGET_EXAM_NAME] = examName.trim().ifBlank { "Target Exam" }
+            prefs[KEY_TARGET_EXAM_DATE_MILLIS] = examDateMillis
+        }
     }
 }

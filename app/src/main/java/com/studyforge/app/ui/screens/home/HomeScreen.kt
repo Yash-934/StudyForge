@@ -25,6 +25,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -33,14 +36,21 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,10 +75,15 @@ import com.studyforge.app.ui.components.StudyForgeBrandLogo
 import com.studyforge.app.ui.components.StudyHeatmap
 import com.studyforge.app.ui.screens.questions.ImportBulkQuestionBankDialog
 import com.studyforge.app.ui.theme.ErrorRed
+import com.studyforge.app.ui.theme.GoldenAmberBar
+import com.studyforge.app.ui.theme.MintTagText
 import com.studyforge.app.ui.theme.PurpleAccent
 import com.studyforge.app.ui.theme.SuccessGreen
+import com.studyforge.app.ui.theme.WarmOrangeBadge
 import com.studyforge.app.ui.theme.WarningYellow
 import com.studyforge.app.viewmodel.StudyViewModel
+import java.util.Calendar
+import kotlin.math.ceil
 
 @Composable
 fun HomeScreen(
@@ -83,6 +98,8 @@ fun HomeScreen(
     onNavigateToMistakes: (Long) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToPractice: () -> Unit,
+    onNavigateToFocusTimer: () -> Unit = {},
+    onNavigateToBookmarks: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -92,12 +109,36 @@ fun HomeScreen(
     val revisionDue by viewModel.revisionDueItems.collectAsState()
     val unresolvedMistakes by viewModel.unresolvedMistakes.collectAsState()
     val sessions by viewModel.sessions.collectAsState()
+    val dailyStudyGoalMins by viewModel.dailyStudyGoalMins.collectAsState()
+    val dailyQuestionsGoal by viewModel.dailyQuestionsGoal.collectAsState()
+    val targetExamName by viewModel.targetExamName.collectAsState()
+    val targetExamDateMillis by viewModel.targetExamDateMillis.collectAsState()
 
     val topChapter = remember(chapters) { chapters.firstOrNull() }
     val topSubjectName = remember(topChapter, subjects) {
         if (topChapter == null) null else subjects.find { it.id == topChapter.subjectId }?.name ?: "General"
     }
     var showBulkQBankDialog by remember { mutableStateOf(false) }
+    var showGoalConfigDialog by remember { mutableStateOf(false) }
+
+    val todayStartMillis = remember {
+        Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val todaySessions = remember(sessions, todayStartMillis) {
+        sessions.filter { it.dateMillis >= todayStartMillis }
+    }
+    val todayMinutes = remember(todaySessions) { todaySessions.sumOf { it.durationMinutes } }
+    val todayQuestions = remember(todaySessions) { todaySessions.sumOf { it.questionsSolved } }
+
+    val examDaysLeft = remember(targetExamDateMillis) {
+        if (targetExamDateMillis <= System.currentTimeMillis()) null
+        else ceil((targetExamDateMillis - System.currentTimeMillis()).toDouble() / 86_400_000.0).toInt()
+    }
 
     LazyColumn(
         modifier = modifier
@@ -207,6 +248,16 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                item(key = "act_focus_timer") {
+                    ActionChip(label = "Focus Timer", icon = Icons.Default.Timer) {
+                        onNavigateToFocusTimer()
+                    }
+                }
+                item(key = "act_starred_vault") {
+                    ActionChip(label = "Starred Vault", icon = Icons.Default.Bookmark) {
+                        onNavigateToBookmarks()
+                    }
+                }
                 item(key = "act_qbank") {
                     ActionChip(label = "Import All Q-Bank", icon = Icons.Default.Quiz) {
                         showBulkQBankDialog = true
@@ -278,6 +329,152 @@ fun HomeScreen(
                     subtext = "${analytics.overallAverageScore.toInt()}% avg",
                     modifier = Modifier.weight(1f)
                 )
+            }
+        }
+
+        // Daily Study Goal Ring & Exam Countdown Tracker Card
+        item(key = "home_daily_goal_and_exam") {
+            val minsProgress = (todayMinutes.toFloat() / dailyStudyGoalMins.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+            val qsProgress = (todayQuestions.toFloat() / dailyQuestionsGoal.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+
+            StudyCard(
+                shape = RoundedCornerShape(22.dp),
+                borderColor = WarmOrangeBadge.copy(alpha = 0.35f)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            SquircleIconBadge(
+                                icon = Icons.Default.Event,
+                                accentColor = WarmOrangeBadge,
+                                size = 40.dp,
+                                iconSize = 20.dp
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = targetExamName,
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = if (examDaysLeft != null) "$examDaysLeft days remaining • Stay consistent!"
+                                    else "Tap 'Set Target' to add exam countdown",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        if (examDaysLeft != null) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = WarmOrangeBadge.copy(alpha = 0.14f),
+                                border = BorderStroke(1.dp, WarmOrangeBadge.copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = "⏳ ${examDaysLeft}d left",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = WarmOrangeBadge,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Today's Study Minutes Progress
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Today's Focus Time",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${todayMinutes}m / ${dailyStudyGoalMins}m (${(minsProgress * 100).toInt()}%)",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                            color = WarmOrangeBadge
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(5.dp))
+                    LinearProgressIndicator(
+                        progress = { minsProgress },
+                        color = WarmOrangeBadge,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(7.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Today's Questions Progress
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Today's Questions Target",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "$todayQuestions / $dailyQuestionsGoal Qs (${(qsProgress * 100).toInt()}%)",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                            color = MintTagText
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(5.dp))
+                    LinearProgressIndicator(
+                        progress = { qsProgress },
+                        color = SuccessGreen,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(7.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onNavigateToFocusTimer,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1.2f)
+                        ) {
+                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Start Focus Timer", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                        }
+                        FilledTonalButton(
+                            onClick = { showGoalConfigDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(0.8f)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Set Target", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                        }
+                    }
+                }
             }
         }
 
@@ -567,6 +764,57 @@ fun HomeScreen(
                         }
                     }
                 }
+
+                StudyCard(
+                    shape = RoundedCornerShape(20.dp),
+                    onClick = { onNavigateToBookmarks() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            SquircleIconBadge(
+                                icon = Icons.Default.Star,
+                                accentColor = GoldenAmberBar,
+                                size = 42.dp,
+                                iconSize = 22.dp
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    "Starred & Bookmarks Vault",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    "Last-minute revision hub for bookmarked MCQs, formulas & favorite notes",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(GoldenAmberBar.copy(alpha = 0.16f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = WarmOrangeBadge,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -612,6 +860,75 @@ fun HomeScreen(
             onDismiss = { showBulkQBankDialog = false },
             onSuccess = { summary ->
                 viewModel.showMessage("Imported ${summary.totalQuestionsImported} questions across ${summary.chaptersAffected} chapters!")
+            }
+        )
+    }
+
+    if (showGoalConfigDialog) {
+        var examNameInput by remember { mutableStateOf(targetExamName) }
+        val initialDays = examDaysLeft ?: 60
+        var daysLeftInput by remember { mutableStateOf(initialDays.toString()) }
+        var dailyMinsInput by remember { mutableStateOf(dailyStudyGoalMins.toString()) }
+        var dailyQsInput by remember { mutableStateOf(dailyQuestionsGoal.toString()) }
+
+        AlertDialog(
+            onDismissRequest = { showGoalConfigDialog = false },
+            title = { Text("Configure Exam & Daily Goals 🎯", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = examNameInput,
+                        onValueChange = { examNameInput = it },
+                        label = { Text("Target Exam Name (e.g. JEE, NEET, Finals)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = daysLeftInput,
+                        onValueChange = { daysLeftInput = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Days Remaining Until Exam") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = dailyMinsInput,
+                        onValueChange = { dailyMinsInput = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Daily Study Goal (Minutes)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = dailyQsInput,
+                        onValueChange = { dailyQsInput = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Daily Questions Goal (MCQs)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val days = (daysLeftInput.toIntOrNull() ?: 60).coerceIn(1, 1500)
+                        val targetMillis = System.currentTimeMillis() + days * 86_400_000L
+                        val mins = (dailyMinsInput.toIntOrNull() ?: 120).coerceIn(15, 900)
+                        val qs = (dailyQsInput.toIntOrNull() ?: 30).coerceIn(5, 500)
+                        viewModel.updateStudyGoalsAndExam(
+                            dailyStudyMins = mins,
+                            dailyQuestions = qs,
+                            examName = examNameInput,
+                            examDateMillis = targetMillis
+                        )
+                        showGoalConfigDialog = false
+                    }
+                ) {
+                    Text("Save Target")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGoalConfigDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }
