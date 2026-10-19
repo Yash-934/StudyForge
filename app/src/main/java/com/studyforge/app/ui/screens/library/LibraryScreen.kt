@@ -26,20 +26,44 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.UnfoldLess
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import com.studyforge.app.ui.screens.questions.ImportBulkQuestionBankDialog
+import com.studyforge.app.ui.theme.DarkSlateHeroEnd
+import com.studyforge.app.ui.theme.DarkSlateHeroStart
+import com.studyforge.app.ui.theme.GoldenAmberBar
+import com.studyforge.app.ui.theme.SoftMintPillBg
+import com.studyforge.app.ui.theme.SoftMintPillText
+import com.studyforge.app.ui.theme.WarmOrangeBadge
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -100,6 +124,7 @@ fun LibraryScreen(
     var subjectActionTarget by remember { mutableStateOf<SubjectEntity?>(null) }
     var subjectToEdit by remember { mutableStateOf<SubjectEntity?>(null) }
     var subjectToDelete by remember { mutableStateOf<SubjectEntity?>(null) }
+    var collapsedBatchIds by remember { mutableStateOf(setOf<Long>()) }
 
     val filteredBatches = remember(batches, searchQuery) {
         if (searchQuery.isBlank()) batches else batches.filter {
@@ -116,12 +141,59 @@ fun LibraryScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showCreateBatchDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.Transparent,
+                border = BorderStroke(1.2.dp, GoldenAmberBar.copy(alpha = 0.55f)),
+                shadowElevation = 8.dp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(DarkSlateHeroStart, DarkSlateHeroEnd)
+                        )
+                    )
+                    .clickable { showCreateBatchDialog = true }
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Batch")
+                Row(
+                    modifier = Modifier.padding(start = 10.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(WarmOrangeBadge, GoldenAmberBar)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CreateNewFolder,
+                            contentDescription = "Create New Batch",
+                            tint = Color.White,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "New Batch",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 13.5.sp
+                            ),
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Create course",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            color = Color(0xFFCBD5E1)
+                        )
+                    }
+                }
             }
         },
         modifier = modifier.fillMaxSize()
@@ -245,11 +317,21 @@ fun LibraryScreen(
                         batchChapters.sumOf { it.masteryScore } / batchChapters.size
                     } else 0
 
+                    val isExpanded = !collapsedBatchIds.contains(batch.id) || searchQuery.isNotBlank()
+
                     BatchCard(
                         batch = batch,
                         subjectsCount = batchSubjects.size,
                         chaptersCount = batchChapters.size,
                         avgMastery = avgMastery,
+                        isExpanded = isExpanded,
+                        onToggleExpand = {
+                            collapsedBatchIds = if (collapsedBatchIds.contains(batch.id)) {
+                                collapsedBatchIds - batch.id
+                            } else {
+                                collapsedBatchIds + batch.id
+                            }
+                        },
                         onAddSubject = { showCreateSubjectDialogForBatch = batch.id },
                         onRenameBatch = { batchToRename = batch },
                         onImportSubjectsJson = {
@@ -262,7 +344,7 @@ fun LibraryScreen(
                         },
                         onDeleteBatch = { batchToDelete = batch }
                     ) {
-                        // Expandable or List of Subjects inside this Batch
+                        // Expandable List of Subjects inside this Batch
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -271,7 +353,7 @@ fun LibraryScreen(
                         ) {
                             if (batchSubjects.isEmpty()) {
                                 Text(
-                                    text = "No subjects added yet. Tap '+ Add Subject' below.",
+                                    text = "No subjects added yet. Tap 'Add New Subject' below.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 4.dp)
@@ -436,6 +518,8 @@ fun BatchCard(
     subjectsCount: Int,
     chaptersCount: Int,
     avgMastery: Int,
+    isExpanded: Boolean = true,
+    onToggleExpand: () -> Unit = {},
     onAddSubject: () -> Unit,
     onRenameBatch: () -> Unit = {},
     onImportSubjectsJson: () -> Unit = {},
@@ -444,6 +528,12 @@ fun BatchCard(
     content: @Composable () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val isDark = isSystemInDarkTheme()
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "batch_chevron_rotation"
+    )
 
     StudyCard(
         shape = RoundedCornerShape(22.dp)
@@ -454,7 +544,14 @@ fun BatchCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onToggleExpand() }
+                        .padding(vertical = 2.dp)
+                ) {
                     SquircleIconBadge(
                         icon = Icons.Default.Folder,
                         accentColor = MaterialTheme.colorScheme.primary,
@@ -482,46 +579,88 @@ fun BatchCard(
                     }
                 }
 
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Options")
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // One-Click Expand/Hide Toggle Button in Header
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isExpanded) {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                        } else {
+                            SoftMintPillBg
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            if (isExpanded) MaterialTheme.colorScheme.outlineVariant else SoftMintPillText.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onToggleExpand() }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Rename Batch") },
-                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onRenameBatch()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Import All Chapters Q-Bank") },
-                            leadingIcon = { Icon(Icons.Default.Quiz, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onImportQBankJson()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Import Subjects (JSON)") },
-                            leadingIcon = { Icon(Icons.Default.UploadFile, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onImportSubjectsJson()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete Batch", color = MaterialTheme.colorScheme.error) },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                menuExpanded = false
-                                onDeleteBatch()
-                            }
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isExpanded) "Hide" else "Subjects ($subjectsCount)",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                ),
+                                color = if (isExpanded) MaterialTheme.colorScheme.onSurfaceVariant else SoftMintPillText
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (isExpanded) "Hide subjects" else "Show subjects",
+                                tint = if (isExpanded) MaterialTheme.colorScheme.onSurfaceVariant else SoftMintPillText,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .rotate(chevronRotation)
+                            )
+                        }
+                    }
+
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Options")
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Rename Batch") },
+                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onRenameBatch()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Import All Chapters Q-Bank") },
+                                leadingIcon = { Icon(Icons.Default.Quiz, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onImportQBankJson()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Import Subjects (JSON)") },
+                                leadingIcon = { Icon(Icons.Default.UploadFile, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onImportSubjectsJson()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete Batch", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onDeleteBatch()
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -537,23 +676,81 @@ fun BatchCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             MasteryProgressBar(score = avgMastery)
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Subjects list inside
-            content()
-
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = onAddSubject,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            // Expandable Subjects Section
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
+                exit = shrinkVertically(animationSpec = tween(200)) + fadeOut(animationSpec = tween(150))
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Add Subject", style = MaterialTheme.typography.labelMedium)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Subjects list inside
+                    content()
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Redesigned Add Subject Interactive Card-Button (No boring '+' icon)
+                    val addSubBg = if (isDark) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                    } else {
+                         Color(0xFFF0FDF4)
+                    }
+                    val addSubBorder = if (isDark) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                    } else {
+                        Color(0xFFBBF7D0)
+                    }
+                    val addSubAccent = if (isDark) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        SoftMintPillText
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = addSubBg,
+                        border = BorderStroke(1.dp, addSubBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { onAddSubject() }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(addSubAccent.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LibraryAdd,
+                                    contentDescription = null,
+                                    tint = addSubAccent,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Add New Subject",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = addSubAccent
+                            )
+                        }
+                    }
+                }
             }
         }
     }
