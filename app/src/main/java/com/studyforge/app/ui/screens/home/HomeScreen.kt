@@ -100,6 +100,7 @@ fun HomeScreen(
     onNavigateToPractice: () -> Unit,
     onNavigateToFocusTimer: () -> Unit = {},
     onNavigateToBookmarks: () -> Unit = {},
+    onNavigateToPlanner: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -256,6 +257,11 @@ fun HomeScreen(
                 item(key = "act_starred_vault") {
                     ActionChip(label = "Starred Vault", icon = Icons.Default.Bookmark) {
                         onNavigateToBookmarks()
+                    }
+                }
+                item(key = "act_journal") {
+                    ActionChip(label = "Daily Journal", icon = Icons.Default.Event) {
+                        onNavigateToPlanner()
                     }
                 }
                 item(key = "act_qbank") {

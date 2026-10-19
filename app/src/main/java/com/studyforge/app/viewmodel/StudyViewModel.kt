@@ -623,6 +623,13 @@ class StudyViewModel(
         }
     }
 
+    fun deleteJournal(journal: JournalEntity) {
+        viewModelScope.launch {
+            repository.deleteJournalEntry(journal)
+            showMessage("Journal entry deleted")
+        }
+    }
+
     fun saveJournal(
         dateMillis: Long,
         freeText: String,

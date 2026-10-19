@@ -452,6 +452,7 @@ class StudyRepository(private val db: AppDatabase) {
     suspend fun deleteTimetableEntry(entry: TimetableEntity) = db.timetableDao().deleteEntry(entry)
     suspend fun insertJournalEntry(entry: JournalEntity) = db.journalDao().insertOrUpdateJournal(entry)
     suspend fun getJournalForDate(dateMillis: Long): JournalEntity? = db.journalDao().getEntryForDate(dateMillis)
+    suspend fun deleteJournalEntry(entry: JournalEntity) = db.journalDao().deleteJournalEntry(entry)
 
     data class CurriculumImportSummary(
         val batchId: Long,

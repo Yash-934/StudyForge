@@ -269,7 +269,9 @@ fun FocusTimerScreen(
                             label = {
                                 Text(
                                     text = preset.label,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         )
@@ -378,48 +380,62 @@ fun FocusTimerScreen(
 
                         Spacer(modifier = Modifier.height(22.dp))
 
-                        // Control Buttons Row
+                        // Control Buttons Row (Sleek, ergonomic, zero-text-wrapping)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedButton(
-                                onClick = {
-                                    isRunning = false
-                                    elapsedSeconds = 0
-                                    remainingSeconds = totalTargetSeconds
-                                },
-                                shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                modifier = Modifier.weight(0.9f)
+                            // Reset Squircle Button - guaranteed no squish
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White.copy(alpha = 0.14f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.32f)),
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable {
+                                        isRunning = false
+                                        elapsedSeconds = 0
+                                        remainingSeconds = totalTargetSeconds
+                                    }
                             ) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Reset")
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Reset Timer",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
                             }
 
+                            // Primary Action Button (Play / Pause / Resume)
                             Button(
                                 onClick = { isRunning = !isRunning },
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isRunning) WarningYellow else WarmOrangeBadge,
                                     contentColor = Color.White
                                 ),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                                 modifier = Modifier
-                                    .weight(1.3f)
+                                    .weight(1f)
+                                    .height(54.dp)
                                     .testTag("start_pause_focus_button")
                             ) {
                                 Icon(
                                     imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = if (isRunning) "Pause" else if (elapsedSeconds > 0) "Resume" else "Start Focus",
-                                    fontWeight = FontWeight.ExtraBold
+                                    fontWeight = FontWeight.ExtraBold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
 
@@ -429,12 +445,13 @@ fun FocusTimerScreen(
                                         totalTargetSeconds += 5 * 60
                                         remainingSeconds += 5 * 60
                                     },
-                                    shape = RoundedCornerShape(14.dp),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f)),
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.32f)),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                    modifier = Modifier.weight(0.8f)
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(54.dp)
                                 ) {
-                                    Text("+5m", fontWeight = FontWeight.Bold)
+                                    Text("+5m", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                                 }
                             }
                         }
@@ -487,7 +504,7 @@ fun FocusTimerScreen(
                                 FilterChip(
                                     selected = selectedTag == tag,
                                     onClick = { selectedTag = tag },
-                                    label = { Text(tag, style = MaterialTheme.typography.labelSmall) }
+                                    label = { Text(tag, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) }
                                 )
                             }
                         }
@@ -512,7 +529,7 @@ fun FocusTimerScreen(
                                         selectedSubjectId = -1L
                                         selectedChapterId = -1L
                                     },
-                                    label = { Text("General Study") }
+                                    label = { Text("General Study", maxLines = 1, softWrap = false) }
                                 )
                                 subjects.forEach { sub ->
                                     FilterChip(
@@ -521,7 +538,7 @@ fun FocusTimerScreen(
                                             selectedSubjectId = sub.id
                                             selectedChapterId = chapters.firstOrNull { it.subjectId == sub.id }?.id ?: -1L
                                         },
-                                        label = { Text(sub.name) }
+                                        label = { Text(sub.name, maxLines = 1, softWrap = false) }
                                     )
                                 }
                             }

@@ -269,6 +269,9 @@ fun AppNavigation(
                     },
                     onNavigateToBookmarks = {
                         navController.navigate(Screen.BookmarksVault.route)
+                    },
+                    onNavigateToPlanner = {
+                        navController.navigate(Screen.Planner.route)
                     }
                 )
             }

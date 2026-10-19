@@ -47,7 +47,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.studyforge.app.domain.ai.AiResponse
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.viewmodel.StudyViewModel
@@ -77,6 +79,10 @@ fun AiAssistantDialog(
             viewModel.resetAiState()
             onDismiss()
         },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -102,25 +108,27 @@ fun AiAssistantDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // Capability chips
+                // Capability chips (horizontally scrollable, never overflow or split words)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
                         selected = selectedAction == "simplify",
                         onClick = { selectedAction = "simplify" },
-                        label = { Text("Simplify") }
+                        label = { Text("Simplify", maxLines = 1, softWrap = false) }
                     )
                     FilterChip(
                         selected = selectedAction == "explain",
                         onClick = { selectedAction = "explain" },
-                        label = { Text("Explain") }
+                        label = { Text("Explain", maxLines = 1, softWrap = false) }
                     )
                     FilterChip(
                         selected = selectedAction == "questions",
                         onClick = { selectedAction = "questions" },
-                        label = { Text("Questions") }
+                        label = { Text("Questions", maxLines = 1, softWrap = false) }
                     )
                 }
 
