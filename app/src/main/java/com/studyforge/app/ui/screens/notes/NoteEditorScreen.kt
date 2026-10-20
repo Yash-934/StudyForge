@@ -69,7 +69,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import com.studyforge.app.domain.pdf.NotePdfExporter
+import com.studyforge.app.ui.components.LocalReaderStyle
 import com.studyforge.app.ui.components.MarkdownMathView
 import com.studyforge.app.ui.components.MathEditorToolbar
 import com.studyforge.app.ui.components.RenderMarkdownNode
@@ -114,6 +123,17 @@ fun NoteEditorScreen(
     var showNoteListMenu by remember { mutableStateOf(false) }
     var showMoreActionsMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Reader Customization, Annotations & Listen Note (TTS) State
+    val readerPrefs = rememberReaderPreferences(context)
+    var showAppearancePanel by remember { mutableStateOf(false) }
+    var showAnnotationBar by remember { mutableStateOf(false) }
+    var activeAnnotationTool by remember { mutableStateOf(AnnotationTool.HIGHLIGHT_YELLOW) }
+    var wordSelectionMode by remember { mutableStateOf(false) }
+    var wordPickerNodeIndex by remember { mutableIntStateOf(-1) }
+    var showListenBar by remember { mutableStateOf(false) }
+    var currentSpokenIndex by remember { mutableIntStateOf(-1) }
+    val readerListState = rememberLazyListState()
 
     // Zero-permission Photo Picker for importing images from device gallery
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -340,62 +360,98 @@ fun NoteEditorScreen(
                             )
                         }
                     } else {
+                        // 1. Annotate (Highlight & Underline)
+                        Surface(
+                            onClick = {
+                                showAnnotationBar = !showAnnotationBar
+                                if (showAnnotationBar) showAppearancePanel = false
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (showAnnotationBar) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                            },
+                            modifier = Modifier
+                                .padding(horizontal = 2.dp)
+                                .size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "🖍️", fontSize = 15.sp)
+                            }
+                        }
+
+                        // 2. Reading Theme, Font & Text Size (Aa)
+                        Surface(
+                            onClick = {
+                                showAppearancePanel = !showAppearancePanel
+                                if (showAppearancePanel) showAnnotationBar = false
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (showAppearancePanel) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                            },
+                            modifier = Modifier
+                                .padding(horizontal = 2.dp)
+                                .size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "Aa",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = if (showAppearancePanel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // 3. Listen Note (Text-to-Speech Audio Reader)
+                        Surface(
+                            onClick = { showListenBar = !showListenBar },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (showListenBar) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                            },
+                            modifier = Modifier
+                                .padding(horizontal = 2.dp)
+                                .size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "🔊", fontSize = 15.sp)
+                            }
+                        }
+
+                        // 4. AI Study Assistant
                         Surface(
                             onClick = { showAiDialog = true },
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
                             modifier = Modifier
-                                .padding(horizontal = 3.dp)
+                                .padding(horizontal = 2.dp)
                                 .size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Text(text = "✨", fontSize = 16.sp)
+                                Text(text = "✨", fontSize = 15.sp)
                             }
                         }
+
+                        // 5. Edit Note
                         Surface(
                             onClick = { isEditing = true },
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
                             modifier = Modifier
-                                .padding(horizontal = 3.dp)
+                                .padding(horizontal = 2.dp)
                                 .size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Text(text = "✏️", fontSize = 15.sp)
+                                Text(text = "✏️", fontSize = 14.sp)
                             }
                         }
-                        Surface(
-                            onClick = {
-                                val safeFileName = title.ifBlank { "StudyForge_Note" }
-                                    .replace(Regex("[^a-zA-Z0-9_\\- ]"), "")
-                                    .trim()
-                                    .replace(" ", "_") + ".pdf"
-                                pdfExportLauncher.launch(safeFileName)
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier
-                                .padding(horizontal = 3.dp)
-                                .size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(text = "📄", fontSize = 15.sp)
-                            }
-                        }
-                        if (activeNoteId > 0L) {
-                            Surface(
-                                onClick = { showDeleteDialog = true },
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
-                                modifier = Modifier
-                                    .padding(horizontal = 3.dp)
-                                    .size(36.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(text = "🗑️", fontSize = 15.sp)
-                                }
-                            }
-                        }
+
                         Box {
                             IconButton(onClick = { showMoreActionsMenu = true }) {
                                 Icon(
@@ -407,6 +463,33 @@ fun NoteEditorScreen(
                                 expanded = showMoreActionsMenu,
                                 onDismissRequest = { showMoreActionsMenu = false }
                             ) {
+                                DropdownMenuItem(
+                                    text = { Text("Highlight & Underline Tools") },
+                                    leadingIcon = { Text(text = "🖍️", fontSize = 15.sp) },
+                                    onClick = {
+                                        showMoreActionsMenu = false
+                                        showAnnotationBar = true
+                                        showAppearancePanel = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Reading Theme, Font & Size") },
+                                    leadingIcon = { Text(text = "🔤", fontSize = 15.sp) },
+                                    onClick = {
+                                        showMoreActionsMenu = false
+                                        showAppearancePanel = true
+                                        showAnnotationBar = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (showListenBar) "Stop Listen Note" else "Listen Note (Audio TTS)") },
+                                    leadingIcon = { Text(text = "🔊", fontSize = 15.sp) },
+                                    onClick = {
+                                        showMoreActionsMenu = false
+                                        showListenBar = !showListenBar
+                                    }
+                                )
+                                HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text("Export Note as PDF") },
                                     leadingIcon = {
@@ -465,6 +548,17 @@ fun NoteEditorScreen(
                                         }
                                     }
                                 )
+                                if (activeNoteId > 0L) {
+                                    HorizontalDivider()
+                                    DropdownMenuItem(
+                                        text = { Text("Delete Note", color = MaterialTheme.colorScheme.error) },
+                                        leadingIcon = { Text(text = "🗑️", fontSize = 15.sp) },
+                                        onClick = {
+                                            showMoreActionsMenu = false
+                                            showDeleteDialog = true
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -549,103 +643,242 @@ fun NoteEditorScreen(
                 }
             }
         } else {
-            // DIRECT FULL SCREEN PREVIEW MODE (Clean 120 FPS virtualized reader in a crisp white sheet card)
+            // DIRECT FULL SCREEN PREVIEW MODE (Clean 120 FPS virtualized reader with custom Themes, Fonts, Size, Annotations & TTS)
             val parsedNodes = remember(contentMarkdown) {
                 parseMarkdownToNodes(contentMarkdown.ifBlank { "*No content entered yet.*" })
             }
-            val sheetColor = MaterialTheme.colorScheme.surface
+            val styleConfig = readerPrefs.toStyleConfig()
+            val sheetColor = readerPrefs.theme.sheetColor
+            val readerBgColor = readerPrefs.theme.backgroundColor
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                item(key = "note_title_header") {
-                    Surface(
-                        color = sheetColor,
-                        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-                        modifier = Modifier.fillMaxWidth()
+            // Auto-scroll to the active spoken paragraph when Listen Note TTS advances
+            LaunchedEffect(currentSpokenIndex) {
+                if (currentSpokenIndex >= 0 && currentSpokenIndex < parsedNodes.size) {
+                    readerListState.animateScrollToItem((currentSpokenIndex + 1).coerceAtLeast(0))
+                }
+            }
+
+            fun persistUpdatedMarkdown(updatedMd: String) {
+                if (updatedMd != contentMarkdown) {
+                    contentMarkdown = updatedMd
+                    if (activeNoteId > 0L) {
+                        viewModel.saveNote(
+                            id = activeNoteId,
+                            chapterId = chapterId,
+                            subjectId = chapter?.subjectId ?: 1L,
+                            batchId = chapter?.batchId ?: 1L,
+                            title = title.ifBlank { "Untitled Note" },
+                            contentMarkdown = updatedMd,
+                            isFavorite = isFavorite,
+                            isPinned = isPinned
+                        )
+                    }
+                }
+            }
+
+            CompositionLocalProvider(LocalReaderStyle provides styleConfig) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(readerBgColor)
+                        .padding(padding)
+                ) {
+                    // Collapsible Reader Appearance Panel (Theme, Font, Text Size)
+                    ReaderAppearancePanel(
+                        visible = showAppearancePanel,
+                        readerPrefs = readerPrefs,
+                        onClose = { showAppearancePanel = false }
+                    )
+
+                    // Collapsible Interactive Annotation Dock (Highlight Colors, Underline, Clear)
+                    ReaderAnnotationBar(
+                        visible = showAnnotationBar,
+                        activeTool = activeAnnotationTool,
+                        onSelectTool = { activeAnnotationTool = it },
+                        wordSelectionMode = wordSelectionMode,
+                        onToggleWordSelectionMode = { wordSelectionMode = it },
+                        onClose = { showAnnotationBar = false }
+                    )
+
+                    // Collapsible Listen Note Audio TTS Bar
+                    ListenNotePlayerBar(
+                        visible = showListenBar,
+                        context = context,
+                        parsedNodes = parsedNodes,
+                        noteTitle = title,
+                        readerPrefs = readerPrefs,
+                        currentSpokenIndex = currentSpokenIndex,
+                        onSpokenIndexChange = { currentSpokenIndex = it },
+                        onClose = { showListenBar = false }
+                    )
+
+                    LazyColumn(
+                        state = readerListState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 8.dp)
-                        ) {
-                            Text(
-                                text = title.ifBlank { "Untitled Note" },
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 22.sp,
-                                    lineHeight = 30.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
+                        item(key = "note_title_header") {
+                            Surface(
+                                color = sheetColor,
+                                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
                                 modifier = Modifier.fillMaxWidth()
-                            )
-
-                            if (chapter != null) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 8.dp)
                                 ) {
                                     Text(
-                                        text = "📓 ${chapter.name}",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            lineHeight = 18.sp
+                                        text = title.ifBlank { "Untitled Note" },
+                                        style = MaterialTheme.typography.headlineSmall.copy(
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = (22f * readerPrefs.fontScale).sp,
+                                            lineHeight = (31f * readerPrefs.fontScale).sp,
+                                            fontFamily = readerPrefs.fontChoice.fontFamily
                                         ),
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        color = readerPrefs.theme.textColor,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 3.dp, bottom = 2.dp)
+                                    )
+
+                                    if (chapter != null) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = readerPrefs.theme.accentColor.copy(alpha = 0.14f)
+                                        ) {
+                                            Text(
+                                                text = "📓 ${chapter.name}",
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    lineHeight = 18.sp
+                                                ),
+                                                color = readerPrefs.theme.accentColor,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    HorizontalDivider(
+                                        thickness = 1.2.dp,
+                                        color = readerPrefs.theme.textColor.copy(alpha = 0.14f)
                                     )
                                 }
                             }
+                        }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(
-                                thickness = 1.2.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant
+                        items(
+                            count = parsedNodes.size,
+                            key = { index ->
+                                val node = parsedNodes[index]
+                                "${node.javaClass.simpleName}_${index}_${node.hashCode()}"
+                            }
+                        ) { index ->
+                            val node = parsedNodes[index]
+                            val isSpokenActive = currentSpokenIndex == index
+                            val isAnnotatable = showAnnotationBar &&
+                                activeAnnotationTool != AnnotationTool.NONE &&
+                                extractNodeAnchorText(node).isNotBlank()
+
+                            Surface(
+                                color = sheetColor,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 2.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .then(
+                                            if (isSpokenActive) {
+                                                Modifier
+                                                    .background(readerPrefs.theme.accentColor.copy(alpha = 0.12f))
+                                                    .border(
+                                                        1.5.dp,
+                                                        readerPrefs.theme.accentColor,
+                                                        RoundedCornerShape(10.dp)
+                                                    )
+                                            } else if (isAnnotatable) {
+                                                Modifier.clickable {
+                                                    if (wordSelectionMode && activeAnnotationTool != AnnotationTool.ERASER) {
+                                                        wordPickerNodeIndex = index
+                                                    } else {
+                                                        val updated = applyAnnotationToMarkdown(
+                                                            contentMarkdown = contentMarkdown,
+                                                            nodeIndex = index,
+                                                            parsedNodes = parsedNodes,
+                                                            tool = activeAnnotationTool
+                                                        )
+                                                        persistUpdatedMarkdown(updated)
+                                                    }
+                                                }
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    RenderMarkdownNode(node)
+                                }
+                            }
+                        }
+
+                        item(key = "note_sheet_footer") {
+                            Surface(
+                                color = sheetColor,
+                                shape = RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(22.dp)
+                            ) {}
+                        }
+
+                        item(key = "note_bottom_spacer") {
+                            Spacer(modifier = Modifier.height(88.dp))
+                        }
+                    }
+                }
+            }
+
+            if (wordPickerNodeIndex in parsedNodes.indices) {
+                val targetAnchor = extractNodeAnchorText(parsedNodes[wordPickerNodeIndex])
+                if (targetAnchor.isNotBlank()) {
+                    WordAnnotationPickerDialog(
+                        rawBlockText = targetAnchor,
+                        activeTool = activeAnnotationTool,
+                        onApplyFullLine = {
+                            val idx = wordPickerNodeIndex
+                            wordPickerNodeIndex = -1
+                            val updated = applyAnnotationToMarkdown(
+                                contentMarkdown = contentMarkdown,
+                                nodeIndex = idx,
+                                parsedNodes = parsedNodes,
+                                tool = activeAnnotationTool
                             )
-                        }
-                    }
-                }
-
-                items(
-                    count = parsedNodes.size,
-                    key = { index ->
-                        val node = parsedNodes[index]
-                        "${node.javaClass.simpleName}_${index}_${node.hashCode()}"
-                    }
-                ) { index ->
-                    Surface(
-                        color = sheetColor,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 18.dp, vertical = 3.dp)
-                        ) {
-                            RenderMarkdownNode(parsedNodes[index])
-                        }
-                    }
-                }
-
-                item(key = "note_sheet_footer") {
-                    Surface(
-                        color = sheetColor,
-                        shape = RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(22.dp)
-                    ) {}
-                }
-
-                item(key = "note_bottom_spacer") {
-                    Spacer(modifier = Modifier.height(88.dp))
+                            persistUpdatedMarkdown(updated)
+                        },
+                        onApplyWordRange = { phrase ->
+                            val idx = wordPickerNodeIndex
+                            wordPickerNodeIndex = -1
+                            val updated = applyAnnotationToMarkdown(
+                                contentMarkdown = contentMarkdown,
+                                nodeIndex = idx,
+                                parsedNodes = parsedNodes,
+                                tool = activeAnnotationTool,
+                                selectedPhrase = phrase
+                            )
+                            persistUpdatedMarkdown(updated)
+                        },
+                        onDismiss = { wordPickerNodeIndex = -1 }
+                    )
+                } else {
+                    wordPickerNodeIndex = -1
                 }
             }
         }

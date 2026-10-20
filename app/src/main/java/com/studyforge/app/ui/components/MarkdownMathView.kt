@@ -777,9 +777,26 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
             colWidths.fold(0.dp) { acc, d -> acc + d }
         }
 
+        val readerStyle = LocalReaderStyle.current
+        val tableSheetColor = if (readerStyle.sheetColor != Color.Unspecified) {
+            readerStyle.sheetColor
+        } else {
+            MaterialTheme.colorScheme.surface
+        }
+        val tableTextColor = if (readerStyle.textColor != Color.Unspecified) {
+            readerStyle.textColor
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
+        val headerBgColor = if (readerStyle.accentColor != Color.Unspecified) {
+            readerStyle.accentColor.copy(alpha = 0.14f)
+        } else {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        }
+
         Surface(
             shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = tableSheetColor,
             modifier = Modifier
                 .then(if (needsScroll) Modifier.fillMaxWidth() else Modifier.width(totalTableWidth))
                 .border(1.dp, gridBorderColor, RoundedCornerShape(10.dp))
@@ -797,7 +814,7 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
                 Row(
                     modifier = Modifier
                         .width(totalTableWidth)
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+                        .background(headerBgColor)
                         .drawWithContent {
                             drawContent()
                             val strokePx = 0.75.dp.toPx()
@@ -819,16 +836,16 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
                         Box(
                             modifier = Modifier
                                 .width(colWidths[idx])
-                                .padding(horizontal = 8.dp, vertical = 7.dp)
+                                .padding(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             RichMarkdownText(
                                 text = headerText,
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.5.sp,
-                                    lineHeight = 18.sp
+                                    lineHeight = 20.sp
                                 ),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = tableTextColor,
                                 textAlign = align,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -847,7 +864,7 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
                     val rowBg = if (rIdx % 2 == 0) {
                         Color.Transparent
                     } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                        tableTextColor.copy(alpha = 0.04f)
                     }
                     Row(
                         modifier = Modifier
@@ -867,7 +884,7 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
                                     )
                                 }
                             },
-                        verticalAlignment = Alignment.Top
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         headers.indices.forEach { cIdx ->
                             val cellAnnotated = rowCells.getOrElse(cIdx) { AnnotatedString("") }
@@ -875,15 +892,15 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
                             Box(
                                 modifier = Modifier
                                     .width(colWidths[cIdx])
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    .padding(horizontal = 8.dp, vertical = 7.dp)
                             ) {
                                 RichMarkdownText(
                                     text = cellAnnotated,
                                     style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = 12.sp,
-                                        lineHeight = 18.sp
+                                        fontSize = 12.5.sp,
+                                        lineHeight = 20.sp
                                     ),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = tableTextColor,
                                     textAlign = align,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -1164,23 +1181,35 @@ private data class CalloutStyle(
 @Composable
 fun HeadingText(text: String? = null, annotatedText: AnnotatedString? = null, level: Int = 1) {
     val content = annotatedText ?: (text?.let { parseInlineMarkdownAndLatex(it.trim()) } ?: AnnotatedString(""))
-    val barColor = MaterialTheme.colorScheme.primary
+    val readerStyle = LocalReaderStyle.current
+    val barColor = if (readerStyle.accentColor != Color.Unspecified) {
+        readerStyle.accentColor
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val headingColor = if (readerStyle.textColor != Color.Unspecified) {
+        readerStyle.textColor
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
     if (level == 1) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 6.dp)
+                .padding(top = 10.dp, bottom = 6.dp)
         ) {
             RichMarkdownText(
                 text = content,
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 22.sp,
-                    lineHeight = 30.sp
+                    lineHeight = 32.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.fillMaxWidth()
+                color = headingColor,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 3.dp, bottom = 2.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(
@@ -1193,17 +1222,17 @@ fun HeadingText(text: String? = null, annotatedText: AnnotatedString? = null, le
             2 -> MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 19.sp,
-                lineHeight = 27.sp
+                lineHeight = 29.sp
             )
             3 -> MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
-                lineHeight = 25.sp
+                lineHeight = 26.sp
             )
             else -> MaterialTheme.typography.titleSmall.copy(
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.5.sp,
-                lineHeight = 23.sp
+                lineHeight = 24.sp
             )
         }
         val barWidth = if (level == 2) 4.dp else 3.5.dp
@@ -1226,12 +1255,12 @@ fun HeadingText(text: String? = null, annotatedText: AnnotatedString? = null, le
                     )
                     drawContent()
                 }
-                .padding(start = 12.dp)
+                .padding(start = 12.dp, top = 3.dp, bottom = 2.dp)
         ) {
             RichMarkdownText(
                 text = content,
                 style = style,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = headingColor,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -1241,6 +1270,12 @@ fun HeadingText(text: String? = null, annotatedText: AnnotatedString? = null, le
 @Composable
 fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null, indentLevel: Int = 0) {
     val content = annotatedText ?: (text?.let { parseInlineMarkdownAndLatex(it) } ?: AnnotatedString(""))
+    val readerStyle = LocalReaderStyle.current
+    val itemColor = if (readerStyle.textColor != Color.Unspecified) {
+        readerStyle.textColor
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     val startPad = 8.dp + (indentLevel.coerceIn(0, 4) * 18).dp
     val bulletChar = when (indentLevel) {
         0 -> "•"
@@ -1257,10 +1292,10 @@ fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null,
             text = bulletChar,
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
-                lineHeight = 25.sp
+                fontSize = (16f * readerStyle.fontScale).sp,
+                lineHeight = (25f * readerStyle.fontScale).sp
             ),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = itemColor,
             modifier = Modifier.padding(end = 10.dp)
         )
         RichMarkdownText(
@@ -1269,7 +1304,7 @@ fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null,
                 fontSize = 15.5.sp,
                 lineHeight = 25.sp
             ),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = itemColor,
             modifier = Modifier.weight(1f)
         )
     }
@@ -1278,6 +1313,17 @@ fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null,
 @Composable
 fun NumberedListItem(number: String, text: String? = null, annotatedText: AnnotatedString? = null, indentLevel: Int = 0) {
     val content = annotatedText ?: (text?.let { parseInlineMarkdownAndLatex(it) } ?: AnnotatedString(""))
+    val readerStyle = LocalReaderStyle.current
+    val itemColor = if (readerStyle.textColor != Color.Unspecified) {
+        readerStyle.textColor
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val numberColor = if (readerStyle.accentColor != Color.Unspecified) {
+        readerStyle.accentColor
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
     val startPad = 8.dp + (indentLevel.coerceIn(0, 4) * 18).dp
     Row(
         modifier = Modifier
@@ -1289,10 +1335,10 @@ fun NumberedListItem(number: String, text: String? = null, annotatedText: Annota
             text = "$number.",
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 15.5.sp,
-                lineHeight = 25.sp
+                fontSize = (15.5f * readerStyle.fontScale).sp,
+                lineHeight = (25f * readerStyle.fontScale).sp
             ),
-            color = MaterialTheme.colorScheme.primary,
+            color = numberColor,
             modifier = Modifier.padding(end = 10.dp)
         )
         RichMarkdownText(
@@ -1301,7 +1347,7 @@ fun NumberedListItem(number: String, text: String? = null, annotatedText: Annota
                 fontSize = 15.5.sp,
                 lineHeight = 25.sp
             ),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = itemColor,
             modifier = Modifier.weight(1f)
         )
     }
@@ -1310,6 +1356,12 @@ fun NumberedListItem(number: String, text: String? = null, annotatedText: Annota
 @Composable
 fun ChecklistItem(checked: Boolean, text: String? = null, annotatedText: AnnotatedString? = null) {
     val content = annotatedText ?: (text?.let { parseInlineMarkdownAndLatex(it) } ?: AnnotatedString(""))
+    val readerStyle = LocalReaderStyle.current
+    val itemColor = if (readerStyle.textColor != Color.Unspecified) {
+        readerStyle.textColor
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1331,7 +1383,7 @@ fun ChecklistItem(checked: Boolean, text: String? = null, annotatedText: Annotat
                 lineHeight = 25.sp,
                 textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None
             ),
-            color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            color = if (checked) itemColor.copy(alpha = 0.6f) else itemColor,
             modifier = Modifier.weight(1f)
         )
     }
@@ -1340,9 +1392,19 @@ fun ChecklistItem(checked: Boolean, text: String? = null, annotatedText: Annotat
 @Composable
 fun BlockquoteCard(text: String? = null, annotatedText: AnnotatedString? = null) {
     val content = annotatedText ?: (text?.let { parseInlineMarkdownAndLatex(it) } ?: AnnotatedString(""))
-    val barColor = MaterialTheme.colorScheme.primary
+    val readerStyle = LocalReaderStyle.current
+    val barColor = if (readerStyle.accentColor != Color.Unspecified) {
+        readerStyle.accentColor
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val quoteColor = if (readerStyle.textColor != Color.Unspecified) {
+        readerStyle.textColor.copy(alpha = 0.85f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = barColor.copy(alpha = 0.08f),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1369,7 +1431,7 @@ fun BlockquoteCard(text: String? = null, annotatedText: AnnotatedString? = null)
                     fontStyle = FontStyle.Italic,
                     lineHeight = 22.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = quoteColor,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -1510,6 +1572,79 @@ private fun AnnotatedString.Builder.appendInlineMarkdownTokens(text: String) {
             }
         }
 
+        // Highlight ==...== (Yellow Highlighter)
+        if (text.startsWith("==", cursor)) {
+            val endHl = text.indexOf("==", cursor + 2)
+            if (endHl != -1) {
+                val hlText = text.substring(cursor + 2, endHl)
+                pushStyle(SpanStyle(background = Color(0x66FACC15)))
+                appendInlineMarkdownTokens(hlText)
+                pop()
+                cursor = endHl + 2
+                continue
+            }
+        }
+
+        // Underline ++...++
+        if (text.startsWith("++", cursor)) {
+            val endUl = text.indexOf("++", cursor + 2)
+            if (endUl != -1) {
+                val ulText = text.substring(cursor + 2, endUl)
+                pushStyle(SpanStyle(textDecoration = TextDecoration.Underline))
+                appendInlineMarkdownTokens(ulText)
+                pop()
+                cursor = endUl + 2
+                continue
+            }
+        }
+
+        // HTML/Tag Highlights & Underlines: <hl:yellow>...</hl>, <hl:green>...</hl>, <hl:pink>...</hl>, <hl:blue>...</hl>, <mark>...</mark>, <u>...</u>
+        if (text[cursor] == '<') {
+            when {
+                text.startsWith("<hl:", cursor) -> {
+                    val closeTagBracket = text.indexOf('>', cursor + 4)
+                    val endTag = if (closeTagBracket != -1) text.indexOf("</hl>", closeTagBracket + 1) else -1
+                    if (closeTagBracket != -1 && endTag != -1) {
+                        val colorKey = text.substring(cursor + 4, closeTagBracket).trim().lowercase()
+                        val inner = text.substring(closeTagBracket + 1, endTag)
+                        val hlBg = when (colorKey) {
+                            "green" -> Color(0x554ADE80)
+                            "pink" -> Color(0x55F472B6)
+                            "blue" -> Color(0x5538BDF8)
+                            else -> Color(0x66FACC15)
+                        }
+                        pushStyle(SpanStyle(background = hlBg))
+                        appendInlineMarkdownTokens(inner)
+                        pop()
+                        cursor = endTag + 5
+                        continue
+                    }
+                }
+                text.startsWith("<mark>", cursor) -> {
+                    val endMark = text.indexOf("</mark>", cursor + 6)
+                    if (endMark != -1) {
+                        val inner = text.substring(cursor + 6, endMark)
+                        pushStyle(SpanStyle(background = Color(0x66FACC15)))
+                        appendInlineMarkdownTokens(inner)
+                        pop()
+                        cursor = endMark + 7
+                        continue
+                    }
+                }
+                text.startsWith("<u>", cursor) -> {
+                    val endU = text.indexOf("</u>", cursor + 3)
+                    if (endU != -1) {
+                        val inner = text.substring(cursor + 3, endU)
+                        pushStyle(SpanStyle(textDecoration = TextDecoration.Underline))
+                        appendInlineMarkdownTokens(inner)
+                        pop()
+                        cursor = endU + 4
+                        continue
+                    }
+                }
+            }
+        }
+
         // Strikethrough ~~...~~
         if (text.startsWith("~~", cursor)) {
             val endStrike = text.indexOf("~~", cursor + 2)
@@ -1536,6 +1671,51 @@ private fun AnnotatedString.Builder.appendInlineMarkdownTokens(text: String) {
         append(text[cursor])
         cursor++
     }
+}
+
+/**
+ * Converts a `MarkdownNode` into clean, natural spoken text for Text-to-Speech ("Listen Note"),
+ * supporting both Hindi and English math expressions.
+ */
+fun markdownNodeToSpokenText(node: MarkdownNode): String {
+    val raw = when (node) {
+        is MarkdownNode.Heading -> node.text.text
+        is MarkdownNode.Paragraph -> node.text.text
+        is MarkdownNode.Formula -> formatLatexToReadableMath(node.rawLatex)
+        is MarkdownNode.Callout -> "${node.tag}. ${node.content.text}"
+        is MarkdownNode.ListItem -> {
+            if (node.isNumbered) "${node.prefix} ${node.text.text}" else node.text.text
+        }
+        is MarkdownNode.Checklist -> node.text.text
+        is MarkdownNode.Blockquote -> node.text.text
+        is MarkdownNode.Table -> {
+            val headerStr = node.headers.joinToString(", ") { it.text }
+            val rowsStr = node.rows.take(15).joinToString(". ") { row ->
+                row.joinToString(", ") { it.text }
+            }
+            "$headerStr. $rowsStr"
+        }
+        is MarkdownNode.CodeBlock -> node.code
+        is MarkdownNode.Divider -> ""
+        is MarkdownNode.Image -> node.alt
+    }
+    if (raw.isBlank()) return ""
+    val hasHindi = raw.any { it in '\u0900'..'\u097F' }
+    return raw
+        .replace(Regex("""\(([^()/]+)\s*/\s*([^()/]+)\)""")) { m ->
+            val n = m.groupValues[1].trim()
+            val d = m.groupValues[2].trim()
+            if (hasHindi) "$n बटा $d" else "$n by $d"
+        }
+        .replace("⟹", if (hasHindi) " से प्राप्त होता है " else " implies ")
+        .replace("⇒", if (hasHindi) " से प्राप्त होता है " else " implies ")
+        .replace("→", if (hasHindi) " से " else " to ")
+        .replace("×", if (hasHindi) " गुणा " else " into ")
+        .replace("÷", if (hasHindi) " भाग " else " divided by ")
+        .replace("∴", if (hasHindi) " इसलिए " else " therefore ")
+        .replace("∵", if (hasHindi) " क्योंकि " else " because ")
+        .replace(Regex("""\s+"""), " ")
+        .trim()
 }
 
 /**

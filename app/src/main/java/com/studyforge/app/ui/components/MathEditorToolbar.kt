@@ -63,6 +63,10 @@ fun MathEditorToolbar(
             ToolbarChip(label = "H3") { onInsertText("\n### ") }
             ToolbarChip(label = "Bold") { onInsertText("**text**") }
             ToolbarChip(label = "Italic") { onInsertText("*text*") }
+            ToolbarChip(label = "🟡 Highlight") { onInsertText("==text==") }
+            ToolbarChip(label = "🟢 Green HL") { onInsertText("<hl:green>text</hl>") }
+            ToolbarChip(label = "🩷 Pink HL") { onInsertText("<hl:pink>text</hl>") }
+            ToolbarChip(label = "U̲ Underline") { onInsertText("++text++") }
             ToolbarChip(label = "Inline Code") { onInsertText("`code`") }
             ToolbarChip(label = "List") { onInsertText("\n- ") }
             ToolbarChip(label = "Task") { onInsertText("\n- [ ] ") }

@@ -30,6 +30,20 @@ val JetBrainsMono = FontFamily(
     Font(R.font.jetbrains_mono, FontWeight.Bold)
 )
 
+val LoraSerifFont = FontFamily(
+    Font(R.font.lora, FontWeight.Normal),
+    Font(R.font.lora, FontWeight.Medium),
+    Font(R.font.lora, FontWeight.SemiBold),
+    Font(R.font.lora, FontWeight.Bold)
+)
+
+val OpenSansFont = FontFamily(
+    Font(R.font.open_sans, FontWeight.Normal),
+    Font(R.font.open_sans, FontWeight.Medium),
+    Font(R.font.open_sans, FontWeight.SemiBold),
+    Font(R.font.open_sans, FontWeight.Bold)
+)
+
 private val DefaultPlatformTextStyle = PlatformTextStyle(
     includeFontPadding = true
 )

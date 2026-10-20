@@ -41,6 +41,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
@@ -58,6 +60,27 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.max
 
 private const val INLINE_CONTENT_TAG = "androidx.compose.foundation.text.inlineContent"
+
+/**
+ * Reader customization config passed down via `LocalReaderStyle` so all markdown nodes,
+ * tables, lists, headings, and 2D math equations respond to user-selected Reading Theme,
+ * Font Family, and Text Size Scale.
+ */
+data class ReaderStyleConfig(
+    val fontScale: Float = 1.0f,
+    val fontFamily: FontFamily? = null,
+    val textColor: Color = Color.Unspecified,
+    val secondaryTextColor: Color = Color.Unspecified,
+    val accentColor: Color = Color.Unspecified,
+    val sheetColor: Color = Color.Unspecified
+)
+
+val LocalReaderStyle = compositionLocalOf { ReaderStyleConfig() }
+
+private val TightFractionPlatformStyle = PlatformTextStyle(includeFontPadding = false)
+private val REGEX_LEFT_FALLBACK = Regex("""\\left(?![a-zA-Z])""")
+private val REGEX_RIGHT_FALLBACK = Regex("""\\right(?![a-zA-Z])""")
+private val REGEX_STANDALONE_ARROW_WORD = Regex("""\barrow\b""")
 
 // =========================================================================
 // AST FOR 2D TEXTBOOK MATHEMATICAL RENDERING
@@ -156,15 +179,25 @@ fun RichMarkdownText(
     color: Color = Color.Unspecified,
     textAlign: TextAlign? = null
 ) {
-    val resolvedColor = if (color != Color.Unspecified) {
-        color
-    } else if (style.color != Color.Unspecified) {
-        style.color
-    } else {
-        MaterialTheme.colorScheme.onSurface
+    val readerStyle = LocalReaderStyle.current
+    val resolvedColor = when {
+        color != Color.Unspecified -> color
+        readerStyle.textColor != Color.Unspecified -> readerStyle.textColor
+        style.color != Color.Unspecified -> style.color
+        else -> MaterialTheme.colorScheme.onSurface
     }
 
-    val baseFontSizeSp = if (style.fontSize.isSp) style.fontSize.value else 15.5f
+    val rawFontSizeSp = if (style.fontSize.isSp) style.fontSize.value else 15.5f
+    val baseFontSizeSp = rawFontSizeSp * readerStyle.fontScale
+    val rawLineHeightSp = if (style.lineHeight.isSp) style.lineHeight.value else rawFontSizeSp * 1.55f
+    val scaledLineHeightSp = rawLineHeightSp * readerStyle.fontScale
+
+    val effectiveFontFamily = readerStyle.fontFamily ?: style.fontFamily
+    val scaledBaseStyle = style.copy(
+        fontSize = baseFontSizeSp.sp,
+        lineHeight = scaledLineHeightSp.sp,
+        fontFamily = effectiveFontFamily
+    )
 
     val inlineAnnotations = remember(text) {
         text.getStringAnnotations(INLINE_CONTENT_TAG, 0, text.length)
@@ -174,7 +207,7 @@ fun RichMarkdownText(
         Text(
             text = text,
             modifier = modifier,
-            style = style,
+            style = scaledBaseStyle,
             color = resolvedColor,
             textAlign = textAlign
         )
@@ -202,13 +235,19 @@ fun RichMarkdownText(
                     )
                     // Calculate compact textbook width in em
                     val widthEm = when {
-                        maxVisualLen <= 1 -> 1.15.em
-                        maxVisualLen == 2 -> 1.65.em
-                        maxVisualLen == 3 -> 2.15.em
-                        else -> (maxVisualLen * 0.56f + 0.55f).em
+                        maxVisualLen <= 1 -> 1.25.em
+                        maxVisualLen == 2 -> 1.75.em
+                        maxVisualLen == 3 -> 2.25.em
+                        else -> (maxVisualLen * 0.58f + 0.65f).em
                     }
-                    val heightEm = 2.35.em
-                    val fracFontSp = (baseFontSizeSp * 0.78f).coerceAtLeast(10f)
+                    // Generous placeholder height + includeFontPadding=false so denominators NEVER clip
+                    val heightEm = if (baseFontSizeSp <= 13.8f) 3.25.em else 2.95.em
+                    val fracFontSp = (baseFontSizeSp * 0.74f).coerceAtLeast(9.5f)
+                    val fracTextStyle = TextStyle(
+                        fontSize = fracFontSp.sp,
+                        lineHeight = fracFontSp.sp,
+                        platformStyle = TightFractionPlatformStyle
+                    )
 
                     map[id] = InlineTextContent(
                         placeholder = Placeholder(
@@ -230,8 +269,7 @@ fun RichMarkdownText(
                             ) {
                                 Text(
                                     text = numStyled,
-                                    fontSize = fracFontSp.sp,
-                                    lineHeight = (fracFontSp * 1.05f).sp,
+                                    style = fracTextStyle,
                                     color = resolvedColor,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
@@ -242,13 +280,12 @@ fun RichMarkdownText(
                                     modifier = Modifier
                                         .padding(vertical = 1.dp)
                                         .fillMaxWidth()
-                                        .height(1.15.dp)
+                                        .height(1.1.dp)
                                         .background(resolvedColor)
                                 )
                                 Text(
                                     text = denStyled,
-                                    fontSize = fracFontSp.sp,
-                                    lineHeight = (fracFontSp * 1.05f).sp,
+                                    style = fracTextStyle,
                                     color = resolvedColor,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
@@ -266,8 +303,8 @@ fun RichMarkdownText(
                 val isLeft = sepIdx != -1 && payload.substring(sepIdx + 3) == "L"
                 val labelStyled = formatMathRunToAnnotatedString(cleanInlineMathSymbols(labelLatex))
                 val visualLen = maxOf(visualMathCharCount(labelStyled.text), 2)
-                val widthEm = (visualLen * 0.56f + 1.1f).em
-                val heightEm = 2.05.em
+                val widthEm = (visualLen * 0.58f + 1.15f).em
+                val heightEm = 2.4.em
                 val labelFontSp = (baseFontSizeSp * 0.72f).coerceAtLeast(9.5f)
 
                 map[id] = InlineTextContent(
@@ -290,8 +327,11 @@ fun RichMarkdownText(
                         ) {
                             Text(
                                 text = labelStyled,
-                                fontSize = labelFontSp.sp,
-                                lineHeight = (labelFontSp * 1.05f).sp,
+                                style = TextStyle(
+                                    fontSize = labelFontSp.sp,
+                                    lineHeight = labelFontSp.sp,
+                                    platformStyle = TightFractionPlatformStyle
+                                ),
                                 color = resolvedColor,
                                 textAlign = TextAlign.Center,
                                 maxLines = 1,
@@ -313,17 +353,18 @@ fun RichMarkdownText(
     }
 
     // Increase lineHeight automatically when inline fractions are present so stacked fractions have vertical room
-    val effectiveLineHeight = if (style.lineHeight.isSp) {
-        maxOf(style.lineHeight.value, baseFontSizeSp * 2.15f).sp
+    val minFractionLineHeightSp = if (baseFontSizeSp <= 13.8f) {
+        baseFontSizeSp * 2.55f
     } else {
-        (baseFontSizeSp * 2.15f).sp
+        baseFontSizeSp * 2.35f
     }
+    val effectiveLineHeight = maxOf(scaledLineHeightSp, minFractionLineHeightSp).sp
 
     Text(
         text = text,
         inlineContent = inlineContentMap,
-        modifier = modifier.padding(vertical = 1.dp),
-        style = style.copy(lineHeight = effectiveLineHeight),
+        modifier = modifier.padding(vertical = 2.dp),
+        style = scaledBaseStyle.copy(lineHeight = effectiveLineHeight),
         color = resolvedColor,
         textAlign = textAlign
     )
@@ -338,11 +379,19 @@ fun TextbookMathBlock(
     rawLatex: String,
     modifier: Modifier = Modifier,
     baseFontSizeSp: Float = 18.5f,
-    textColor: Color = MaterialTheme.colorScheme.onSurface
+    textColor: Color = Color.Unspecified
 ) {
     if (rawLatex.isBlank()) return
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val readerStyle = LocalReaderStyle.current
+
+    val effectiveFontSizeSp = baseFontSizeSp * readerStyle.fontScale
+    val effectiveColor = when {
+        textColor != Color.Unspecified -> textColor
+        readerStyle.textColor != Color.Unspecified -> readerStyle.textColor
+        else -> MaterialTheme.colorScheme.onSurface
+    }
 
     val ast = remember(rawLatex) { parseMathBlockAst(rawLatex) }
 
@@ -370,23 +419,23 @@ fun TextbookMathBlock(
                     if (ast.prefix.isNotEmpty()) {
                         RenderMathInlineNodeList(
                             nodes = ast.prefix,
-                            fontSizeSp = baseFontSizeSp,
-                            color = textColor
+                            fontSizeSp = effectiveFontSizeSp,
+                            color = effectiveColor
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                     }
                     MathArrayTableComposable(
                         colAlignments = ast.colAlignments,
                         rows = ast.rows,
-                        fontSizeSp = baseFontSizeSp * 0.92f,
-                        color = textColor
+                        fontSizeSp = effectiveFontSizeSp * 0.92f,
+                        color = effectiveColor
                     )
                     if (ast.suffix.isNotEmpty()) {
                         Spacer(modifier = Modifier.width(6.dp))
                         RenderMathInlineNodeList(
                             nodes = ast.suffix,
-                            fontSizeSp = baseFontSizeSp,
-                            color = textColor
+                            fontSizeSp = effectiveFontSizeSp,
+                            color = effectiveColor
                         )
                     }
                 }
@@ -401,8 +450,8 @@ fun TextbookMathBlock(
                     if (ast.prefix.isNotEmpty()) {
                         RenderMathInlineNodeList(
                             nodes = ast.prefix,
-                            fontSizeSp = baseFontSizeSp,
-                            color = textColor
+                            fontSizeSp = effectiveFontSizeSp,
+                            color = effectiveColor
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                     }
@@ -412,7 +461,7 @@ fun TextbookMathBlock(
                     ) {
                         TallDelimiterCanvas(
                             delimiter = "{",
-                            color = textColor,
+                            color = effectiveColor,
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .width(12.dp)
@@ -423,15 +472,15 @@ fun TextbookMathBlock(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RenderMathInlineNodeList(
                                         nodes = expr,
-                                        fontSizeSp = baseFontSizeSp * 0.92f,
-                                        color = textColor
+                                        fontSizeSp = effectiveFontSizeSp * 0.92f,
+                                        color = effectiveColor
                                     )
                                     if (cond.isNotEmpty()) {
                                         Spacer(modifier = Modifier.width(16.dp))
                                         RenderMathInlineNodeList(
                                             nodes = cond,
-                                            fontSizeSp = baseFontSizeSp * 0.92f,
-                                            color = textColor
+                                            fontSizeSp = effectiveFontSizeSp * 0.92f,
+                                            color = effectiveColor
                                         )
                                     }
                                 }
@@ -442,8 +491,8 @@ fun TextbookMathBlock(
                         Spacer(modifier = Modifier.width(6.dp))
                         RenderMathInlineNodeList(
                             nodes = ast.suffix,
-                            fontSizeSp = baseFontSizeSp,
-                            color = textColor
+                            fontSizeSp = effectiveFontSizeSp,
+                            color = effectiveColor
                         )
                     }
                 }
@@ -458,8 +507,8 @@ fun TextbookMathBlock(
                     ast.lines.forEach { lineNodes ->
                         RenderMathInlineNodeList(
                             nodes = lineNodes,
-                            fontSizeSp = baseFontSizeSp,
-                            color = textColor
+                            fontSizeSp = effectiveFontSizeSp,
+                            color = effectiveColor
                         )
                     }
                 }
@@ -1400,7 +1449,34 @@ fun cleanInlineMathSymbols(rawLatex: String): String {
         .replace("\\$", "$")
         .replace("\\_", "_")
 
-    // 3. Delimiter sizing macros (MUST run before \le or \ge!)
+    // 3. Arrows FIRST (MUST run before \left and \right so \rightarrow / \leftarrow are never stripped into "arrow"!)
+    s = s.replace("\\Longleftrightarrow", " ⟺ ")
+        .replace("\\Leftrightarrow", " ⇔ ")
+        .replace("\\longrightarrow", " ⟶ ")
+        .replace("\\longleftarrow", " ⟵ ")
+        .replace("\\Longrightarrow", " ⟹ ")
+        .replace("\\Longleftarrow", " ⟸ ")
+        .replace("\\implies", " ⟹ ")
+        .replace("\\impliedby", " ⟸ ")
+        .replace("\\iff", " ⟺ ")
+        .replace("\\rightarrow", " → ")
+        .replace("\\leftarrow", " ← ")
+        .replace("\\leftrightarrow", " ↔ ")
+        .replace("\\Rightarrow", " ⇒ ")
+        .replace("\\Leftarrow", " ⇐ ")
+        .replace("\\updownarrow", "↕")
+        .replace("\\uparrow", "↑")
+        .replace("\\downarrow", "↓")
+        .replace("\\searrow", "↘")
+        .replace("\\swarrow", "↙")
+        .replace("\\nearrow", "↗")
+        .replace("\\nwarrow", "↖")
+        .replace("\\mapsto", " ↦ ")
+        .replace("\\to", " → ")
+        .replace("\\gets", " ← ")
+        .replace("\\arrow", " → ")
+
+    // 4. Delimiter sizing macros (MUST run after arrows and before \le or \ge!)
     s = s.replace("\\left(", "(")
         .replace("\\right)", ")")
         .replace("\\left[", "[")
@@ -1413,44 +1489,21 @@ fun cleanInlineMathSymbols(rawLatex: String): String {
         .replace("\\right|", "|")
         .replace("\\left.", "")
         .replace("\\right.", "")
-        .replace("\\left", "")
-        .replace("\\right", "")
         .replace("\\bigl", "")
         .replace("\\bigr", "")
         .replace("\\Bigl", "")
         .replace("\\Bigr", "")
+    s = REGEX_LEFT_FALLBACK.replace(s, "")
+    s = REGEX_RIGHT_FALLBACK.replace(s, "")
+    s = REGEX_STANDALONE_ARROW_WORD.replace(s, " → ")
 
-    // 4. Integral & Summation limits
+    // 5. Integral & Summation limits
     s = s.replace("\\int", "∫")
         .replace("\\iint", "∬")
         .replace("\\iiint", "∭")
         .replace("\\oint", "∮")
         .replace("\\sum", "∑")
         .replace("\\prod", "∏")
-
-    // 5. Arrows (longest first!)
-    s = s.replace("\\Longleftrightarrow", " ⟺ ")
-        .replace("\\Leftrightarrow", " ⇔ ")
-        .replace("\\longrightarrow", " ⟶ ")
-        .replace("\\longleftarrow", " ⟵ ")
-        .replace("\\Longrightarrow", " ⟹ ")
-        .replace("\\Longleftarrow", " ⟸ ")
-        .replace("\\implies", " ⟹ ")
-        .replace("\\impliedby", " ⟸ ")
-        .replace("\\iff", " ⟺ ")
-        .replace("\\rightarrow", " → ")
-        .replace("\\leftarrow", " ← ")
-        .replace("\\Rightarrow", " ⇒ ")
-        .replace("\\Leftarrow", " ⇐ ")
-        .replace("\\updownarrow", "↕")
-        .replace("\\uparrow", "↑")
-        .replace("\\downarrow", "↓")
-        .replace("\\searrow", "↘")
-        .replace("\\swarrow", "↙")
-        .replace("\\nearrow", "↗")
-        .replace("\\nwarrow", "↖")
-        .replace("\\mapsto", " ↦ ")
-        .replace("\\to", " → ")
 
     // 6. Relations, Logic & Set Theory (longest first so \leq/\left never collide with \le!)
     s = s.replace("\\therefore", "∴ ")
@@ -1579,6 +1632,15 @@ private fun cleanTextMacroInner(inner: String): String {
         .replace("\\{", "{")
         .replace("\\}", "}")
         .replace("\\&", "&")
+        .replace("\\rightarrow", "→")
+        .replace("\\leftarrow", "←")
+        .replace("\\Rightarrow", "⇒")
+        .replace("\\implies", "⟹")
+        .replace("\\uparrow", "↑")
+        .replace("\\downarrow", "↓")
+        .replace("\\to", "→")
+        .replace("\\times", "×")
+        .replace("\\div", "÷")
         .replace("\\ ", " ")
 }
 
