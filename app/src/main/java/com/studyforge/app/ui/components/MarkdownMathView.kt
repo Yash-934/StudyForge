@@ -142,7 +142,12 @@ sealed interface MarkdownNode {
     ) : MarkdownNode
     data class Callout(val tag: String, val content: AnnotatedString) : MarkdownNode
     data class CodeBlock(val code: String, val language: String?) : MarkdownNode
-    data class ListItem(val isNumbered: Boolean, val prefix: String, val text: AnnotatedString) : MarkdownNode
+    data class ListItem(
+        val isNumbered: Boolean,
+        val prefix: String,
+        val text: AnnotatedString,
+        val indentLevel: Int = 0
+    ) : MarkdownNode
     data class Checklist(val checked: Boolean, val text: AnnotatedString) : MarkdownNode
     data class Blockquote(val text: AnnotatedString) : MarkdownNode
     data object Divider : MarkdownNode
@@ -203,9 +208,10 @@ fun parseMarkdownToNodes(markdownText: String): List<MarkdownNode> {
             continue
         }
 
-        // 3. Formula Block: $$ ... $$ or \begin{cases} ... \end{cases}
-        if (trimmed.startsWith("$$") || trimmed.startsWith("\\begin{cases}") || trimmed.startsWith("\\begin{align}") ||
-            trimmed.startsWith("\\[") || (trimmed.startsWith("\\boxed{") && trimmed.endsWith("}")) ||
+        // 3. Formula Block: $$ ... $$ or \begin{array/cases/align}
+        if (trimmed.startsWith("$$") || trimmed.startsWith("\\begin{cases}") || trimmed.startsWith("\\begin{array}") ||
+            trimmed.startsWith("\\begin{align") || trimmed.startsWith("\\[") ||
+            (trimmed.startsWith("\\boxed{") && trimmed.endsWith("}")) ||
             (trimmed.startsWith("\\") && (trimmed.contains("\\frac") || trimmed.contains("\\int") || trimmed.contains("\\sum") || trimmed.contains("\\sqrt") || (trimmed.contains("=") && !trimmed.contains(" "))))
         ) {
             val mathContent = StringBuilder()
@@ -217,6 +223,10 @@ fun parseMarkdownToNodes(markdownText: String): List<MarkdownNode> {
                     mathContent.append(cleanLine)
                     i++
                 } else {
+                    val firstLineAfterDollar = trimmed.removePrefix("$$").removePrefix("\\[").trim()
+                    if (firstLineAfterDollar.isNotBlank()) {
+                        mathContent.appendLine(firstLineAfterDollar)
+                    }
                     i++
                     while (i < lines.size && !lines[i].trim().endsWith("$$") && !lines[i].trim().endsWith("\\]")) {
                         mathContent.appendLine(lines[i])
@@ -228,7 +238,11 @@ fun parseMarkdownToNodes(markdownText: String): List<MarkdownNode> {
                     }
                 }
             } else if (trimmed.startsWith("\\begin{")) {
-                val endTag = if (trimmed.startsWith("\\begin{cases}")) "\\end{cases}" else if (trimmed.startsWith("\\begin{array}")) "\\end{array}" else "\\end{align}"
+                val endTag = when {
+                    trimmed.startsWith("\\begin{cases}") -> "\\end{cases}"
+                    trimmed.startsWith("\\begin{array}") -> "\\end{array}"
+                    else -> "\\end{align"
+                }
                 while (i < lines.size) {
                     val curr = lines[i]
                     mathContent.appendLine(curr)
@@ -289,7 +303,14 @@ fun parseMarkdownToNodes(markdownText: String): List<MarkdownNode> {
             continue
         }
 
-        // 6. Headings
+        // 6. Headings, Nested Lists, Blockquotes & Paragraphs
+        val leadingSpaces = line.takeWhile { it == ' ' || it == '\t' }.fold(0) { acc, c -> acc + if (c == '\t') 4 else 1 }
+        val indentLvl = when {
+            leadingSpaces >= 4 -> 2
+            leadingSpaces >= 2 -> 1
+            else -> 0
+        }
+
         when {
             trimmed.startsWith("#") && trimmed.takeWhile { it == '#' }.length in 1..6 &&
                 (trimmed.dropWhile { it == '#' }.firstOrNull()?.isWhitespace() == true) -> {
@@ -304,15 +325,44 @@ fun parseMarkdownToNodes(markdownText: String): List<MarkdownNode> {
                 nodes.add(MarkdownNode.Checklist(checked = false, text = parseInlineMarkdownAndLatex(trimmed.substring(6))))
             }
             trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
-                nodes.add(MarkdownNode.ListItem(isNumbered = false, prefix = "•", text = parseInlineMarkdownAndLatex(trimmed.substring(2))))
+                val bulletChar = when (indentLvl) {
+                    0 -> "•"
+                    1 -> "◦"
+                    else -> "▪"
+                }
+                nodes.add(
+                    MarkdownNode.ListItem(
+                        isNumbered = false,
+                        prefix = bulletChar,
+                        text = parseInlineMarkdownAndLatex(trimmed.substring(2)),
+                        indentLevel = indentLvl
+                    )
+                )
             }
             trimmed.matches(REGEX_NUMBERED) -> {
                 val number = trimmed.substringBefore(".").trim()
                 val content = trimmed.substringAfter(". ").trim()
-                nodes.add(MarkdownNode.ListItem(isNumbered = true, prefix = "$number.", text = parseInlineMarkdownAndLatex(content)))
+                nodes.add(
+                    MarkdownNode.ListItem(
+                        isNumbered = true,
+                        prefix = "$number.",
+                        text = parseInlineMarkdownAndLatex(content),
+                        indentLevel = indentLvl
+                    )
+                )
             }
-            trimmed.startsWith("> ") -> {
-                nodes.add(MarkdownNode.Blockquote(text = parseInlineMarkdownAndLatex(trimmed.removePrefix("> ").trim())))
+            trimmed.startsWith(">") -> {
+                val quoteLines = mutableListOf<String>()
+                while (i < lines.size && lines[i].trim().startsWith(">")) {
+                    val qLine = lines[i].trim().removePrefix(">").trim()
+                    if (qLine.isNotBlank()) quoteLines.add(qLine)
+                    i++
+                }
+                val combinedQuote = quoteLines.joinToString("\n")
+                if (combinedQuote.isNotBlank()) {
+                    nodes.add(MarkdownNode.Blockquote(text = parseInlineMarkdownAndLatex(combinedQuote)))
+                }
+                continue
             }
             trimmed == "---" || trimmed == "***" -> {
                 nodes.add(MarkdownNode.Divider)
@@ -400,7 +450,7 @@ private fun cleanAndParseTableCell(rawCell: String): AnnotatedString {
             normalized.contains("\\cdot") || normalized.contains("\\to") ||
             normalized.contains("\\rightarrow") || normalized.contains("\\infty"))
     ) {
-        parseInlineMarkdownAndLatex(formatLatexToReadableMath(normalized))
+        buildAnnotatedString { appendInlineMathLatex(normalized) }
     } else {
         parseInlineMarkdownAndLatex(normalized)
     }
@@ -455,18 +505,17 @@ fun RenderMarkdownNode(node: MarkdownNode) {
             Spacer(modifier = Modifier.height(4.dp))
         }
         is MarkdownNode.Paragraph -> {
-            Text(
+            RichMarkdownText(
                 text = node.text,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp),
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 25.sp,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(4.dp))
         }
         is MarkdownNode.Formula -> {
             BlockMathCard(rawLatex = node.rawLatex, preformatted = node.formatted)
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
         }
         is MarkdownNode.Table -> {
             PreParsedMarkdownTableCard(table = node)
@@ -482,9 +531,16 @@ fun RenderMarkdownNode(node: MarkdownNode) {
         }
         is MarkdownNode.ListItem -> {
             if (node.isNumbered) {
-                NumberedListItem(number = node.prefix.removeSuffix("."), annotatedText = node.text)
+                NumberedListItem(
+                    number = node.prefix.removeSuffix("."),
+                    annotatedText = node.text,
+                    indentLevel = node.indentLevel
+                )
             } else {
-                BulletListItem(annotatedText = node.text)
+                BulletListItem(
+                    annotatedText = node.text,
+                    indentLevel = node.indentLevel
+                )
             }
             Spacer(modifier = Modifier.height(2.dp))
         }
@@ -533,7 +589,9 @@ fun MarkdownMathView(
 }
 
 /**
- * High-Performance native mathematical card with 0ms native rendering and on-demand KaTeX toggle.
+ * Textbook-grade Display Math renderer for `$$ ... $$` equations.
+ * Renders real vertical stacked fractions, tall scalable brackets/parentheses,
+ * and aligned multi-column `\begin{array}` tables directly on the page like a printed textbook.
  */
 @Composable
 fun BlockMathCard(
@@ -541,110 +599,10 @@ fun BlockMathCard(
     preformatted: String? = null,
     modifier: Modifier = Modifier
 ) {
-    val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
-    var showKatexWebView by remember { mutableStateOf(false) }
-
-    val readableMath = remember(rawLatex, preformatted) {
-        preformatted?.ifBlank { null } ?: formatLatexToReadableMath(rawLatex)
-    }
-
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+    TextbookMathBlock(
+        rawLatex = rawLatex,
         modifier = modifier
-            .fillMaxWidth()
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                RoundedCornerShape(18.dp)
-            )
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SquircleIconBadge(
-                        icon = Icons.Default.Calculate,
-                        accentColor = MaterialTheme.colorScheme.primary,
-                        size = 28.dp,
-                        iconSize = 16.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Formula",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = { showKatexWebView = !showKatexWebView },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (showKatexWebView) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (showKatexWebView) "Fast Native Math" else "KaTeX High-Def Render",
-                            tint = if (showKatexWebView) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(
-                        onClick = {
-                            clipboardManager.setText(AnnotatedString(rawLatex))
-                            Toast.makeText(context, "Formula copied to clipboard!", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy LaTeX",
-                            tint = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (showKatexWebView) {
-                // On-demand KaTeX Textbook Mathematical Typesetting WebView
-                MathFormulaView(
-                    latex = rawLatex,
-                    displayMode = true,
-                    fontSizeSp = 22,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                // 0ms instant native mathematical rendering (120 FPS scrolling)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = readableMath,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = FontFamily.Serif,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp,
-                            lineHeight = 32.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        }
-    }
+    )
 }
 
 private data class ColumnMetrics(
@@ -863,7 +821,7 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
                                 .width(colWidths[idx])
                                 .padding(horizontal = 8.dp, vertical = 7.dp)
                         ) {
-                            Text(
+                            RichMarkdownText(
                                 text = headerText,
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.Bold,
@@ -919,7 +877,7 @@ fun PreParsedMarkdownTableCard(table: MarkdownNode.Table) {
                                     .width(colWidths[cIdx])
                                     .padding(horizontal = 8.dp, vertical = 6.dp)
                             ) {
-                                Text(
+                                RichMarkdownText(
                                     text = cellAnnotated,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontSize = 12.sp,
@@ -1180,11 +1138,10 @@ fun PreParsedCalloutCard(tag: String, content: AnnotatedString) {
             }
             if (content.text.isNotBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                RichMarkdownText(
                     text = content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 22.sp
+                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -1215,7 +1172,7 @@ fun HeadingText(text: String? = null, annotatedText: AnnotatedString? = null, le
                 .fillMaxWidth()
                 .padding(top = 8.dp, bottom = 6.dp)
         ) {
-            Text(
+            RichMarkdownText(
                 text = content,
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.ExtraBold,
@@ -1271,7 +1228,7 @@ fun HeadingText(text: String? = null, annotatedText: AnnotatedString? = null, le
                 }
                 .padding(start = 12.dp)
         ) {
-            Text(
+            RichMarkdownText(
                 text = content,
                 style = style,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -1282,16 +1239,22 @@ fun HeadingText(text: String? = null, annotatedText: AnnotatedString? = null, le
 }
 
 @Composable
-fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null) {
+fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null, indentLevel: Int = 0) {
     val content = annotatedText ?: (text?.let { parseInlineMarkdownAndLatex(it) } ?: AnnotatedString(""))
+    val startPad = 8.dp + (indentLevel.coerceIn(0, 4) * 18).dp
+    val bulletChar = when (indentLevel) {
+        0 -> "•"
+        1 -> "◦"
+        else -> "▪"
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, top = 3.dp, bottom = 3.dp),
+            .padding(start = startPad, top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.Top
     ) {
         Text(
-            text = "•",
+            text = bulletChar,
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp,
@@ -1300,7 +1263,7 @@ fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null)
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(end = 10.dp)
         )
-        Text(
+        RichMarkdownText(
             text = content,
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontSize = 15.5.sp,
@@ -1313,12 +1276,13 @@ fun BulletListItem(text: String? = null, annotatedText: AnnotatedString? = null)
 }
 
 @Composable
-fun NumberedListItem(number: String, text: String? = null, annotatedText: AnnotatedString? = null) {
+fun NumberedListItem(number: String, text: String? = null, annotatedText: AnnotatedString? = null, indentLevel: Int = 0) {
     val content = annotatedText ?: (text?.let { parseInlineMarkdownAndLatex(it) } ?: AnnotatedString(""))
+    val startPad = 8.dp + (indentLevel.coerceIn(0, 4) * 18).dp
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, top = 3.dp, bottom = 3.dp),
+            .padding(start = startPad, top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.Top
     ) {
         Text(
@@ -1331,7 +1295,7 @@ fun NumberedListItem(number: String, text: String? = null, annotatedText: Annota
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(end = 10.dp)
         )
-        Text(
+        RichMarkdownText(
             text = content,
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontSize = 15.5.sp,
@@ -1361,7 +1325,7 @@ fun ChecklistItem(checked: Boolean, text: String? = null, annotatedText: Annotat
                 .size(20.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(
+        RichMarkdownText(
             text = content,
             style = MaterialTheme.typography.bodyLarge.copy(
                 lineHeight = 25.sp,
@@ -1399,7 +1363,7 @@ fun BlockquoteCard(text: String? = null, annotatedText: AnnotatedString? = null)
                 }
                 .padding(start = 14.dp)
         ) {
-            Text(
+            RichMarkdownText(
                 text = content,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontStyle = FontStyle.Italic,
@@ -1430,17 +1394,8 @@ fun parseOptionText(text: String): AnnotatedString {
         // Raw LaTeX without dollar signs (e.g. -\frac{1}{2}\cos(2x) + C, \sqrt{2gh}, x^2 + 7, etc.)
         trimmed.contains('\\') || (trimmed.contains('^') && !trimmed.contains("http")) ||
         (trimmed.contains('_') && !trimmed.contains(" ") && trimmed.length < 50) -> {
-            val formatted = formatLatexToReadableMath(trimmed)
             buildAnnotatedString {
-                pushStyle(
-                    SpanStyle(
-                        fontFamily = FontFamily.Serif,
-                        fontStyle = FontStyle.Italic,
-                        fontWeight = FontWeight.Medium
-                    )
-                )
-                append(formatted)
-                pop()
+                appendInlineMathLatex(trimmed)
             }
         }
 
@@ -1464,7 +1419,7 @@ fun OptionMathText(
     color: Color = Color.Unspecified
 ) {
     val annotatedString = remember(text) { parseOptionText(text) }
-    Text(
+    RichMarkdownText(
         text = annotatedString,
         style = style,
         color = color,
@@ -1473,108 +1428,114 @@ fun OptionMathText(
 }
 
 /**
- * High-speed token-based parser for inline markdown with LRU cache.
+ * High-speed token-based parser for inline markdown and textbook LaTeX with LRU cache.
+ * Supports recursive inline math inside **bold** and *italic* spans and emits real 2D
+ * inline vertical fractions via InlineTextContent annotations.
  */
 fun parseInlineMarkdownAndLatex(text: String): AnnotatedString {
     if (text.isEmpty()) return AnnotatedString("")
-    
+
     // Check Cache
     val cached = ANNOTATED_CACHE[text]
     if (cached != null) return cached
 
     val result = buildAnnotatedString {
-        var cursor = 0
-        val len = text.length
-        while (cursor < len) {
-            // Check for inline math $$...$$ or $...$
-            if (text[cursor] == '$') {
-                val isDouble = cursor + 1 < len && text[cursor + 1] == '$'
-                val delim = if (isDouble) "$$" else "$"
-                val startOffset = cursor + delim.length
-                val endDollar = text.indexOf(delim, startOffset)
-                if (endDollar != -1) {
-                    val latex = text.substring(startOffset, endDollar)
-                    val formattedMath = formatLatexToReadableMath(latex)
-                    pushStyle(
-                        SpanStyle(
-                            fontFamily = FontFamily.Serif,
-                            fontStyle = FontStyle.Italic,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF4F46E5)
-                        )
-                    )
-                    append(formattedMath)
-                    pop()
-                    cursor = endDollar + delim.length
-                    continue
-                }
-            }
-
-            // Inline code `...`
-            if (text[cursor] == '`') {
-                val endBacktick = text.indexOf('`', cursor + 1)
-                if (endBacktick != -1) {
-                    val code = text.substring(cursor + 1, endBacktick)
-                    pushStyle(
-                        SpanStyle(
-                            fontFamily = FontFamily.Monospace,
-                            background = Color(0x22888888),
-                            fontSize = 13.sp
-                        )
-                    )
-                    append(code)
-                    pop()
-                    cursor = endBacktick + 1
-                    continue
-                }
-            }
-
-            // Bold **...**
-            if (text.startsWith("**", cursor)) {
-                val endBold = text.indexOf("**", cursor + 2)
-                if (endBold != -1) {
-                    val boldText = text.substring(cursor + 2, endBold)
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append(boldText)
-                    pop()
-                    cursor = endBold + 2
-                    continue
-                }
-            }
-
-            // Italic *...*
-            if (text[cursor] == '*' && (cursor + 1 < len && text[cursor + 1] != '*')) {
-                val endItalic = text.indexOf('*', cursor + 1)
-                if (endItalic != -1) {
-                    val italicText = text.substring(cursor + 1, endItalic)
-                    pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
-                    append(italicText)
-                    pop()
-                    cursor = endItalic + 1
-                    continue
-                }
-            }
-
-            // Strikethrough ~~...~~
-            if (text.startsWith("~~", cursor)) {
-                val endStrike = text.indexOf("~~", cursor + 2)
-                if (endStrike != -1) {
-                    val strikeText = text.substring(cursor + 2, endStrike)
-                    pushStyle(SpanStyle(textDecoration = TextDecoration.LineThrough))
-                    append(strikeText)
-                    pop()
-                    cursor = endStrike + 2
-                    continue
-                }
-            }
-
-            append(text[cursor])
-            cursor++
-        }
+        appendInlineMarkdownTokens(text)
     }
 
     ANNOTATED_CACHE[text] = result
     return result
+}
+
+private fun AnnotatedString.Builder.appendInlineMarkdownTokens(text: String) {
+    var cursor = 0
+    val len = text.length
+    while (cursor < len) {
+        // Check for inline math $$...$$ or $...$
+        if (text[cursor] == '$') {
+            val isDouble = cursor + 1 < len && text[cursor + 1] == '$'
+            val delim = if (isDouble) "$$" else "$"
+            val startOffset = cursor + delim.length
+            val endDollar = text.indexOf(delim, startOffset)
+            if (endDollar != -1) {
+                val latex = text.substring(startOffset, endDollar)
+                appendInlineMathLatex(latex)
+                cursor = endDollar + delim.length
+                continue
+            }
+        }
+
+        // Inline code `...`
+        if (text[cursor] == '`') {
+            val endBacktick = text.indexOf('`', cursor + 1)
+            if (endBacktick != -1) {
+                val code = text.substring(cursor + 1, endBacktick)
+                pushStyle(
+                    SpanStyle(
+                        fontFamily = FontFamily.Monospace,
+                        background = Color(0x22888888),
+                        fontSize = 13.sp
+                    )
+                )
+                append(code)
+                pop()
+                cursor = endBacktick + 1
+                continue
+            }
+        }
+
+        // Bold **...** (recursively parses inner math $...$ and formatting)
+        if (text.startsWith("**", cursor)) {
+            val endBold = text.indexOf("**", cursor + 2)
+            if (endBold != -1) {
+                val boldText = text.substring(cursor + 2, endBold)
+                pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                appendInlineMarkdownTokens(boldText)
+                pop()
+                cursor = endBold + 2
+                continue
+            }
+        }
+
+        // Italic *...* (recursively parses inner math $...$)
+        if (text[cursor] == '*' && (cursor + 1 < len && text[cursor + 1] != '*')) {
+            val endItalic = text.indexOf('*', cursor + 1)
+            if (endItalic != -1) {
+                val italicText = text.substring(cursor + 1, endItalic)
+                pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
+                appendInlineMarkdownTokens(italicText)
+                pop()
+                cursor = endItalic + 1
+                continue
+            }
+        }
+
+        // Strikethrough ~~...~~
+        if (text.startsWith("~~", cursor)) {
+            val endStrike = text.indexOf("~~", cursor + 2)
+            if (endStrike != -1) {
+                val strikeText = text.substring(cursor + 2, endStrike)
+                pushStyle(SpanStyle(textDecoration = TextDecoration.LineThrough))
+                appendInlineMarkdownTokens(strikeText)
+                pop()
+                cursor = endStrike + 2
+                continue
+            }
+        }
+
+        // Escaped \% or \{ or \} outside math
+        if (text[cursor] == '\\' && cursor + 1 < len) {
+            val nextCh = text[cursor + 1]
+            if (nextCh == '%' || nextCh == '{' || nextCh == '}' || nextCh == '&' || nextCh == '#') {
+                append(nextCh)
+                cursor += 2
+                continue
+            }
+        }
+
+        append(text[cursor])
+        cursor++
+    }
 }
 
 /**
@@ -1661,8 +1622,19 @@ private fun formatMathUnit(latex: String): String {
     // 1. Boxed
     s = REGEX_BOXED.replace(s, "⟦ $1 ⟧")
 
-    // 2. Text macros
-    s = REGEX_TEXT_MACROS.replace(s, "$2")
+    // 2. Text macros (multi-pass for nested braces)
+    repeat(3) {
+        s = REGEX_TEXT_MACROS.replace(s, "$2")
+    }
+    s = s.replace(Regex("""\\xrightarrow(?:\[([^\]]*)\])?\{([^{}]*)\}""")) { m ->
+        val below = m.groupValues[1].trim()
+        val above = m.groupValues[2].trim()
+        if (below.isNotEmpty()) " ──($above / $below)──► " else " ──($above)──► "
+    }
+    s = s.replace(Regex("""\\xleftarrow(?:\[([^\]]*)\])?\{([^{}]*)\}""")) { m ->
+        val above = m.groupValues[2].trim()
+        " ◄──($above)── "
+    }
     s = s.replace("\\arg\\min", "argmin")
         .replace("\\arg\\max", "argmax")
 
@@ -1684,8 +1656,10 @@ private fun formatMathUnit(latex: String): String {
     s = REGEX_ACCENT_DOT.replace(s, "$1̇")
     s = REGEX_ACCENT_DDOT.replace(s, "$1̈")
 
-    // 5. Fractions
-    s = REGEX_FRAC.replace(s, "($1 / $2)")
+    // 5. Fractions (multi-pass for nested fractions)
+    repeat(3) {
+        s = REGEX_FRAC.replace(s, "($1 / $2)")
+    }
 
     // 6. Square Roots
     s = REGEX_SQRT_N.replace(s, "$1√($2)")
@@ -1748,7 +1722,11 @@ private fun formatMathUnit(latex: String): String {
         .replace("\\Omega", "Ω")
 
     // 10. Operators and Relations
-    s = s.replace("\\pm", "±")
+    s = s.replace("\\%", "%")
+        .replace("\\&", "&")
+        .replace("\\#", "#")
+        .replace("\\hline", "────────")
+        .replace("\\pm", "±")
         .replace("\\mp", "∓")
         .replace("\\cdot", " · ")
         .replace("\\times", " × ")
@@ -1773,6 +1751,16 @@ private fun formatMathUnit(latex: String): String {
         .replace("\\infty", "∞")
         .replace("\\partial", "∂")
         .replace("\\nabla", "∇")
+        .replace("\\therefore", "∴")
+        .replace("\\because", "∵")
+        .replace("\\circ", "°")
+        .replace("\\degree", "°")
+        .replace("\\uparrow", "↑")
+        .replace("\\downarrow", "↓")
+        .replace("\\updownarrow", "↕")
+        .replace("\\longrightarrow", "⟶")
+        .replace("\\longleftarrow", "⟵")
+        .replace("\\Longrightarrow", "⟹")
         .replace("\\to", "→")
         .replace("\\rightarrow", "→")
         .replace("\\leftarrow", "←")
@@ -1795,12 +1783,19 @@ private fun formatMathUnit(latex: String): String {
         .replace("\\qquad", "     ")
         .replace("\\,", " ")
         .replace("\\;", " ")
+        .replace("\\:", " ")
+        .replace("\\!", "")
+        .replace("\\ ", " ")
         .replace("\\left(", "(")
         .replace("\\right)", ")")
         .replace("\\left[", "[")
         .replace("\\right]", "]")
         .replace("\\left\\{", "{")
         .replace("\\right\\}", "}")
+        .replace("\\left|", "|")
+        .replace("\\right|", "|")
+        .replace("\\left.", "")
+        .replace("\\right.", "")
         .replace("\\{", "{")
         .replace("\\}", "}")
 
